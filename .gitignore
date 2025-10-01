@@ -1,0 +1,10 @@
+# Ignorar archivos de configuración local que contienen secretos.
+.env
+
+# Ignorar cachés y archivos compilados de Python.
+__pycache__/
+*.pyc
+
+# Ignorar directorios de entornos virtuales.
+venv/
+/opt/venv/

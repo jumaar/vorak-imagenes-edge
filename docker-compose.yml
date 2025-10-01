@@ -1,0 +1,84 @@
+services:
+  nevera:
+    build:
+      context: ./MODULO-NEVERA
+    container_name: vorak-nevera
+    restart: unless-stopped
+    # 'privileged: true' otorga acceso extendido a los dispositivos del host.
+    # Es una forma sencilla de asegurar que el contenedor pueda usar las cámaras y el puerto serie.
+    # Para mayor seguridad en producción, se puede reemplazar con 'cap_add' y grupos específicos.
+    privileged: true
+    env_file:
+      # Carga las variables desde un archivo .env en la misma carpeta que este docker-compose.yml
+      - ./.env
+    environment:
+      # --- CONFIGURACIÓN DE DISPOSITIVOS ---
+      # Pasa las rutas de las cámaras al script app.py.
+      # Se pasan las rutas de los dispositivos DENTRO del contenedor, separadas por comas.
+      - CAMERA_DEVICES=/dev/video0,/dev/video1
+      - SERIAL_PORTS=/dev/ttyUSB0
+    extra_hosts:
+      # Añade una entrada en el /etc/hosts del contenedor para que 'host.docker.internal'
+      # apunte a la IP del host. Es necesario para Linux.
+      - "host.docker.internal:host-gateway"
+    devices:
+      # Mapea los dispositivos de hardware del host al contenedor.
+      # La ruta de la izquierda es la del host, la de la derecha es la del contenedor.
+      - "/dev/ttyUSB0:/dev/ttyUSB0" # Puerto serie para el ESP32
+      # --- MAPEADO DE CÁMARAS CON RUTAS ESTABLES ---
+      # Usamos la ruta completa por ID del host para asegurar que siempre sea la misma cámara.
+      - "/dev/v4l/by-id/usb-Sonix_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index0:/dev/video0"
+      - "/dev/v4l/by-id/usb-Sonix_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-video-index1:/dev/video1"
+    volumes:
+      # Volúmenes para persistir datos importantes del módulo nevera.
+      - nevera_offline_queue:/app/offline_queue
+      - nevera_review_queue:/app/review_queue
+      - nevera_logs:/app/logs
+      - nevera_db:/app/db
+      - fridge_status:/app/status # Volumen compartido para la comunicación con el kiosko.
+
+
+  kiosko:
+    build:
+      context: .
+      dockerfile: ./MODULO-KIOSKO/Dockerfile
+      # Pasa el UID y GID del usuario actual del host al Dockerfile
+      # para crear un usuario con los mismos permisos.
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    container_name: vorak-kiosko
+    # --- AJUSTES PARA COMPATIBILIDAD GRÁFICA AVANZADA ---
+    network_mode: "host" # Comparte la red del host. Esencial para que el contenedor encuentre el DISPLAY en localhost.
+    ipc: host # Comparte el espacio de nombres IPC. Ayuda a la comunicación entre Chromium y el sistema de ventanas.
+    restart: unless-stopped
+    # --- CONFIGURACIÓN PARA INTERFAZ GRÁFICA ---
+    # Es necesario compartir el socket X11 del host y la variable de entorno DISPLAY
+    # para que el contenedor pueda "dibujar" en la pantalla del host.
+    env_file:
+      - ./.env
+    environment:
+      # Solo definimos las variables que NO están en el archivo .env, como DISPLAY.
+      - DISPLAY=${DISPLAY}
+      # Forzamos el paso de la URL del backend para asegurar que llegue al contenedor.
+      - BASE_BACKEND_URL=${BASE_BACKEND_URL}
+      # Pasamos la ruta al archivo de autorización X11 dentro del contenedor.
+      - XAUTHORITY=/home/kiosk/.Xauthority
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Montamos el archivo de autorización del usuario actual del host en el contenedor.
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/home/kiosk/.Xauthority:ro
+      # Monta el volumen compartido en modo 'solo lectura' (ro).
+      # El kiosko solo necesita leer el estado, no modificarlo.
+      - fridge_status:/app/status:ro
+      # Volumen para persistir la caché de medios y la playlist del kiosko.
+      - kiosk_data:/app/data
+volumes:
+  nevera_offline_queue:
+  nevera_review_queue:
+  nevera_logs:
+  nevera_db:
+  fridge_status:
+  kiosk_data:

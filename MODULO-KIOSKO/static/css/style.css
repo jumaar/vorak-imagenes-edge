@@ -1,0 +1,84 @@
+/* Reset básico y configuración de pantalla completa */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Contenedor para la publicidad */
+#media-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #111;
+}
+
+/* Estilo para las imágenes y videos dentro del contenedor */
+#media-container img,
+#media-container video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Mantiene la relación de aspecto sin cortar */
+    animation: fadeIn 1s ease-in-out;
+}
+
+/* Animación de fundido para la transición de medios */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Recuadro de estado superpuesto */
+#status-overlay {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background-color: rgba(0, 0, 0, 0.75);
+    border-radius: 10px;
+    padding: 15px 25px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    color: #e0e0e0;
+    width: 280px;
+}
+
+#status-overlay h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 8px;
+}
+
+#status-overlay p {
+    margin: 8px 0;
+    font-size: 1em;
+}
+
+#status-overlay p strong {
+    color: #a0a0a0;
+    display: inline-block;
+    width: 120px; /* Alinea los valores */
+}
+
+#status-overlay span {
+    font-weight: bold;
+    color: #fff;
+}
+
+#status-overlay .last-update {
+    margin-top: 15px;
+    font-size: 0.8em;
+    text-align: right;
+    color: #888;
+}

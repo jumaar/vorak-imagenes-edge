@@ -1,0 +1,54 @@
+{
+  "1": {
+    "name": "Bandeja de Alitas de Pollo",
+    "nominal_weight_g": 1000
+  },
+  "101": {
+    "name": "Lomo de Cerdo 250g",
+    "nominal_weight_g": 250
+  },
+  "114": {
+    "name": "Jamón Serrano Paquete",
+    "nominal_weight_g": 250
+  },
+  "115": {
+    "name": "Carne para Asar (Sobrebarriga)",
+    "nominal_weight_g": 1000
+  },
+  "116": {
+    "name": "Longaniza",
+    "nominal_weight_g": 500
+  },
+  "117": {
+    "name": "Filete de Contramuslo",
+    "nominal_weight_g": 500
+  },
+  "118": {
+    "name": "Punta de Anca 500g",
+    "nominal_weight_g": 500
+  },
+  "119": {
+    "name": "Tocineta Ahumada 250g",
+    "nominal_weight_g": 250
+  },
+  "120": {
+    "name": "Solomito de Res",
+    "nominal_weight_g": 1000
+  },
+  "2": {
+    "name": "Chorizo Santarrosano",
+    "nominal_weight_g": 450
+  },
+  "3": {
+    "name": "Punta de Anca 1000g",
+    "nominal_weight_g": 1000
+  },
+  "4": {
+    "name": "Pechuga de Pollo Entera",
+    "nominal_weight_g": 1000
+  },
+  "5": {
+    "name": "Carne Molida de Res 500g",
+    "nominal_weight_g": 1000
+  }
+}

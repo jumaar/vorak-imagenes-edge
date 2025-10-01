@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosko Nevera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Contenedor principal para la publicidad (imágenes/videos) -->
+    <div id="media-container">
+        <!-- El contenido se insertará aquí dinámicamente con JavaScript -->
+    </div>
+
+    <!-- Recuadro de estado de la nevera (abajo a la izquierda) -->
+    <div id="status-overlay">
+        <h2>Estado de la Nevera</h2>
+        <p><strong>Temperatura:</strong> <span id="status-temp">--.-</span> °C</p>
+        <p><strong>Puerta:</strong> <span id="status-door">------</span></p>
+        <p><strong>Peso Total:</strong> <span id="status-weight">--.--</span> kg</p>
+        <p class="last-update">Última act: <span id="status-update">--:--:--</span></p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/kiosk.js') }}"></script>
+</body>
+</html>
