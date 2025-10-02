@@ -19,9 +19,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # --- CONFIGURACIÓN PRINCIPAL ---
 # ==============================================================================
 FRIDGE_ID = os.getenv("FRIDGE_ID", "NEVERA-001-SANTAROSA")
-# Lee una variable de entorno 'SERIAL_PORTS' que es una lista de rutas separadas por comas (ej: "/dev/ttyUSB0,/dev/ttyACM0")
-# Si no se define, se usa una lista vacía por defecto.
-SERIAL_PORTS = [port.strip() for port in os.getenv("SERIAL_PORTS", "").split(',') if port.strip()]
+# Detección automática de puertos serie. Busca dispositivos comunes del ESP32.
+# Esto elimina la necesidad de la variable de entorno SERIAL_PORTS.
+SERIAL_PORTS = glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*')
 BAUD_RATE = int(os.getenv("BAUD_RATE", 115200))
 # --- Configuración de Cámaras ---
 # Lee una variable de entorno 'CAMERA_DEVICES' que es una lista de rutas separadas por comas (ej: "/dev/video0,/dev/video2")
@@ -234,33 +234,47 @@ def camera_worker_thread(camera_device, image_cache, capture_event, stop_app_eve
         stop_app_event (threading.Event): Evento para señalar la detención del hilo.
         auth_manager (AuthManager): El gestor de autenticación para obtener el token.
     """
-    cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
-    if not cap.isOpened():
-        logging.error(f"[Cámara {camera_device}] No se pudo abrir la cámara. Este hilo no se ejecutará.")
-        return
-
-    # --- CONFIGURACIÓN DE RESOLUCIÓN (AÑADIDO) ---
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    logging.info(f"[Cámara {camera_device}] Cámara abierta y lista con resolución 1280x720.")
-
+    cap = None
     # Calculamos el tiempo de espera necesario entre fotogramas para alcanzar el FPS objetivo
     frame_delay = 1.0 / TARGET_FPS
 
     while not stop_app_event.is_set():
+        # Intentar abrir o reabrir la cámara si no está abierta
+        if cap is None or not cap.isOpened():
+            logging.warning(f"[Cámara {camera_device}] Intentando abrir/reabrir cámara...")
+            cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
+            if not cap.isOpened():
+                logging.error(f"[Cámara {camera_device}] No se pudo abrir/reabrir la cámara. Reintentando en 5 segundos.")
+                time.sleep(5)
+                continue # Volver a intentar en la siguiente iteración del bucle
+            else:
+                # --- CONFIGURACIÓN DE RESOLUCIÓN ---
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                logging.info(f"[Cámara {camera_device}] Cámara abierta/reabierta con resolución 1280x720.")
+
         loop_start_time = time.monotonic()
 
         ret, frame = cap.read()
+        if not ret:
+            logging.warning(f"[Cámara {camera_device}] cap.read() falló. La cámara podría haberse desconectado o estar inactiva. Intentando reabrir.")
+            if cap.isOpened():
+                cap.release() # Liberar el recurso de la cámara
+            cap = None # Forzar la reapertura en la siguiente iteración
+            time.sleep(1) # Pequeño retraso antes de intentar reabrir
+            continue # Saltar el resto de esta iteración y empezar de nuevo
+
         if ret and capture_event.is_set():
             ts = time.time_ns()
             image_cache.append({'timestamp': ts, 'frame': frame, 'cam_index': camera_device})
 
         # --- Control de FPS ---
-        elapsed_time = time.monotonic() - loop_start_time
+        elapsed_time = time.monotonic() - loop_start_time # Calcular el tiempo que tomó procesar el frame
         time_to_wait = frame_delay - elapsed_time
         if time_to_wait > 0:
             time.sleep(time_to_wait)
-    cap.release()
+    if cap is not None and cap.isOpened():
+        cap.release()
 
 def _send_payload(job, auth_manager):
     """
