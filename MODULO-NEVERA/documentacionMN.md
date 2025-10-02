@@ -1,91 +1,48 @@
-## Guia completa MODULO-NEVERA
-- MODULO-SENSORES : este modulo es una configuracion hecha en esp32 (leer documentacion.md MODULO-SENSORES ), este nos envia un reporte cada 30 segundos con el estado de la nevera, y 2 tipos de eventos a.cuando abre  cierra la puerta b. cuando hay un cambio de peso.
+## Guía Completa MODULO-NEVERA
 
-- HARDWARE : se acondiciona un pc portatil de buena pantalla 15.5 " para el sistema de kiosco , minimo core i3 con 4gb de ram , se instala SO linux Debian 13, se procesa toda la informacion recibida de los sensores y de las camaras web con opturador global shutter monocromaticas de alta captura, pueden ser 2  mas camaras es solo modificar en app.py el CAMERA_INDICES = [0,1,2,3]
+-   **MODULO-SENSORES**: Este módulo es una configuración hecha en ESP32 (leer `documentacion.md` en `MODULO-SENSORES`), que nos envía un reporte de estado cada 30 segundos y eventos cuando la puerta se abre/cierra o cuando hay un cambio de peso.
 
-- ADMINISTRACION : Se utiliza un tunnel ssh desde un pc cliente. por medio de cloudflared se realiza la configuracion del sudominio de cada nueva nevera que se añada a red , clouflared se encarga de hacernos la conexion segura a cada dispositivo para la administracion, el archivo ``config-tunnel-client-ser.md`` es la guia completa para dejar la conexion lista con el servidor. siempre que recibamos una calificacion baja de captura de producto se debe ingresar a la nevera para a revision manual de las capturas tomadas de a secion fallida , cada  secion se guarda con un id unico. la nevera tiene un boton de tara , el cual lleva a cero la bascula (esta se debe tener vacia a momneto de la tara) 
+-   **HARDWARE Y ENTORNO DE EJECUCIÓN**: El sistema está diseñado para ejecutarse en un PC con un sistema operativo Linux que soporte Docker. La aplicación no se instala directamente en el anfitrión, sino que se ejecuta dentro de un **contenedor Docker**, lo que garantiza un entorno consistente y aislado.
+    -   **Imagen Docker**: Se utiliza una imagen base `python:3.11-slim-trixie` con las dependencias necesarias (`ffmpeg`, `libgl1`) instaladas.
+    -   **Cámaras**: El sistema está diseñado para cámaras web con obturador global. La configuración de qué cámaras usar se gestiona a través del archivo `docker-compose.yml` y una variable de entorno, no modificando el código directamente.
 
-- LOGICA : app.py es el cerebro que se encarga de procesar todos los eventos y enviar al backend las respuestas de cada evento , tenemos implementado un sistema de falla de comunicacion persistente, tenemos sistema de logs, tenemos sistema de captura de secion de identificacion de productos con dudosa evaluacion el cual guarda en el servidor las imagenes para una revision posterior por un humano o una ia para verificar cual fue el fallo en la captura y la decision de que producto fue el que salio o entro de la nevera,
+-   **ADMINISTRACIÓN**: (leer `documentacion-IOT.md`) Se mantiene el uso de un túnel SSH a través de Cloudflared para la administración remota segura de cada dispositivo. La revisión de sesiones de baja confianza sigue siendo una tarea clave, accediendo a las imágenes guardadas dentro de los volúmenes del contenedor.
 
-- KIOSK: ``modulo-kiosk-edge`` tenemos un pantalla adactada que muestra en modo kiosko informacion de la nevera y publicidad este modulo se conecta con ``modulo-kiosk-admin``que es el encargado de poner de manera inteligente la publicidad ( si en una nevera hay mucho chorizo esta por vencer --> el sistema coloca en descuento el producto y pone la imagen de promocion de chorizo en la nevera )
-documentacion ``documentacion-kiosk-admin.md``
+-   **LÓGICA**: `app.py` sigue siendo el cerebro que procesa todos los eventos. Ahora, se ejecuta de forma aislada dentro de su contenedor Docker. La comunicación con el módulo de Kiosko se realiza a través de un **volumen Docker compartido** (`fridge_status`), donde `app.py` escribe el archivo `fridge_status.json` para que el kiosko lo lea.
 
-- .env:  ``FRIDGE_ID="NEVERA-001-SANTAROSA"`` simpre modificar este id para cada nevera
-``BASE_BACKEND_URL="https://9dfd069ea59e.ngrok-free.app"`` se coloca solo la url de la api , el resto ya lo manejca cada script.
-``FRIDGE_SECRET="una-clave-secreta-muy-larga-y-unica"`` Clave secreta para la autenticación JWT.
+-   **.env (Archivo de Entorno)**: Este archivo es ahora la fuente principal de configuración.
+    -   `FRIDGE_ID="NEVERA-001-SANTAROSA"`: ID único para cada nevera.
+    -   `BASE_BACKEND_URL="https://api.lenstextil.com/"`: URL base de la API. Los scripts construyen las URLs completas a partir de esta base.
+    -   `FRIDGE_SECRET="una-clave-secreta-muy-larga-y-unica"`: Clave secreta para la autenticación JWT.
+    -   `CAMERA_DEVICES="/dev/video0,/dev/video2"`: Lista de rutas de dispositivos de cámara **dentro del contenedor**, separadas por comas. Estas se mapean desde los dispositivos del host en `docker-compose.yml`.
 
--JWT: Integrado. El sistema ahora usa autenticación JWT para todas las peticiones al backend.
- 
-   
+-   **JWT**: Integrado. El sistema utiliza un `AuthManager` para obtener y refrescar automáticamente tokens de autenticación JWT para todas las peticiones al backend.
+
+---
 
 
 
 
-## TAREAS  --> V 0.3 
+
+
+
+
+
+
+
+
+
+## TAREAS --> V 0.4
 
 nota: en este apartado se colocan ideas y posibles mejoras a futuro , cuando se coloca una queda pendiente, si la tarea se realiza esta se elinina de aca y se implementa inmediatamente en la docuentacion si la mejora fuera positiva.( si esta vacio no hay nada pendiente)
 
-- En que version de este modulo estamos para git?  -> 0.3
-
-- crear un servidor para el manejo .env y que cada nevera se conecte a el para cargar las claves  y las variables de entorno y asi Eliminar la librería python-dotenv usamos swarm
+-   Tarea fija: En que version de este modulo estamos para git? -> 0.4
 
 
 
 
 
-## USO DIARIO. 
-
-# Conéctate usando el subdominio único de la nevera.
-``ssh nevera1@ssh-nevera1.lenstextil.com``
-
-# Verificar el estado de tu aplicación. 
-``sudo systemctl status nevera.service``
-
-# parar el servicio de la app.py
-``sudo systemctl stop nevera.service``
-
-# VERFICAR los LOGS de tu aplicación. 
-``El '-n 100' muestra las últimas 100 líneas, y '--no-pager' lo imprime directo.
-``journalctl -u nevera.service -n 100 --no-pager``
-
-este comando muestra los logs desde el ultimo reinicio
-`journalctl -b -u nevera.service`
-
-ver losg en tiempo real 
-``journalctl -f -u nevera.service``
-
-``# El '-n 20' muestra las últimas 20 líneas.
-``tail -n 20 ~/MODULO-NEVERA/fridge_service.log``
-
-# gestion de archivos en el servidor app
-``cd ~/MODULO-NEVERA/``  modificar archivo de configuracion  ``nano app.py`` 
-reiniciar despues ``sudo systemctl restart nevera.service``
-
-# Entorno virtual para actualizar librerias
-
-1. `` cd ~/MODULO-NEVERA/``  
-2. Activa el entorno para "abrir la caja de herramientas".``source venv/bin/activate``
-
-3. Instala la nueva herramienta. Notarás el prefijo (venv). 
-(venv) nevera1@...:~$ pip install opencv-python requests pyserial python-dotenv Flask PyJWT
-
-4. desactivar el entorno.
-(venv) nevera1@...:~$ deactivate
-
-5. reiniciar de nuevo 
- ``sudo systemctl restart nevera.service``
-
-# copiar carpetas o archivos desde el servidor cambiar el --> nevera1@ssh-nevera1.lenstextil.com
-
-Con este comando se pueden copiar carpetas o archivos desde el servidor desde linux a wimdows o al pc de administracion. 
-`` scp -r nevera1@ssh-nevera1.lenstextil.com:/home/nevera1/MODULO-NEVERA/review_queue/ .``
-nota : estar ubicados en en la terminal donde se quiere guardar la carpeta
-
- Pasar el app.py al servidor
-``scp "D:\Desktop\GITHUB jumaar\vorak\MODULO-NEVERA\app.py" nevera1@ssh-nevera1.lenstextil.com:/home/nevera1/MODULO-NEVERA/``
-
-Pasar  la carpeta completa del kisko al servidor
-``scp -r "D:\Desktop\GITHUB jumaar\vorak\MODULO-NEVERA\modulo-kiosk-edge" nevera1@ssh-nevera1.lenstextil.com:~/MODULO-NEVERA`` 
+   
 
 
 
@@ -99,18 +56,17 @@ Pasar  la carpeta completa del kisko al servidor
 
 ## Módulo de Procesamiento para Nevera Inteligente app.py
 
-### 1. Descripción General / modulos importantes 3. y 8.
+### 1. Descripción General / módulos importantes 3. y 8.
 
-Este programa en Python actúa como el "cerebro" del sistema de la nevera inteligente. Se ejecuta en un PC (o similar) conectado a la nevera y es responsable de:  
+Este programa en Python actúa como el "cerebro" del sistema de la nevera inteligente. Se ejecuta dentro de un contenedor Docker y es responsable de:
 
--   **Comunicarse** con el microcontrolador ESP32 para recibir eventos de sensores (puerta, peso, temperatuta). COM1 COM2 COM3 para windows y SERIAL_PORT = '/dev/ttyUSB0' para linux.
--   **Controlar** las cámaras USB global shutter monocromaticas para capturar imágenes durante una interacción.
--   **Procesar** los datos de la sesión de apertura de puerta para correlacionar cambios de peso con productos (identificados por marcadores ArUco).
--   **Enviar de forma robusta** las transacciones y reportes de estado a un servidor backend, con un sistema de reintentos y persistencia offline para no perder ninguna transacción.
--   **Registrar** toda la actividad y los errores en archivos de log para facilitar la monitorización y el diagnóstico se puede usar un servicio de monitoreo como dataDog o New Relic.
--   **Auditar** sesiones de baja confianza guardando las imágenes capturadas para una revisión posterior (carpeta review_queue) , ya sea manual o por otra IA.
+-   **Comunicarse** con el ESP32, detectando automáticamente el puerto serie (`/dev/ttyUSB*` o `/dev/ttyACM*`) mapeado al contenedor.
+-   **Controlar** las cámaras USB para capturar imágenes durante una interacción.
+-   **Procesar** los datos para correlacionar cambios de peso con productos (identificados por marcadores ArUco).
+-   **Enviar de forma robusta** las transacciones al backend, con un sistema de reintentos y persistencia offline en un volumen Docker.
+-   **Registrar** la actividad en archivos de log persistentes.
+-   **Auditar** sesiones de baja confianza guardando las imágenes en un volumen para revisión posterior.
 
-El sistema está diseñado para ser robusto y manejar múltiples interacciones rápidas sin perder datos.
 
 ### 2. Arquitectura: El Mesero, los Cocineros y el Equipo de Logística
 
@@ -166,17 +122,17 @@ El código se organiza en las siguientes funciones y hilos principales dentro de
 -   `_send_payload()` y `_save_payload_for_offline_sending()`: Funciones auxiliares para el "Cartero" que realizan el envío HTTP y el guardado en disco.
 -   **Bucle Principal (`if __name__ == "__main__"`)**: Actúa como el "Mesero". Gestiona la máquina de estados principal (`IDLE`/`CAPTURING`) y delega el trabajo pesado a los hilos "Cocinero".
 
-### 4. Configuración
+### 4. Configuración (vía Variables de Entorno)
 
-Todas las configuraciones principales se encuentran al inicio del archivo `app.py`:
+La configuración ya no se realiza modificando el código, sino a través de **variables de entorno** definidas en el archivo `.env` y pasadas al contenedor por `docker-compose`.
 
--   `SERIAL_PORT`: Puerto COM o tty donde está conectado el ESP32.
--   `CAMERA_INDICES`: Lista de los índices de las cámaras a utilizar (ej. `[0, 1]` para dos cámaras).
--   `CAPTURE_TIMEOUT_SECONDS`: Segundos de inactividad de peso para terminar una sesión de captura.
--   `BACKEND_URL`: La URL del servidor donde se enviarán los resultados.
--   `MAX_UPLOAD_RETRIES`: Número de reintentos inmediatos antes de guardar un envío para más tarde.
--   `OFFLINE_CHECK_INTERVAL_SECONDS`: Cada cuántos segundos el "Almacenista" revisa si hay envíos pendientes.
--   `REVIEW_QUEUE_PATH`: Carpeta donde se guardan las imágenes de las sesiones que requieren revisión.
+-   `FRIDGE_ID`: ID único de la nevera.
+-   `BASE_BACKEND_URL`: URL base del servidor backend.
+-   `FRIDGE_SECRET`: Clave secreta para la autenticación. Se puede proporcionar como secreto de Docker Swarm.
+-   `CAMERA_DEVICES`: Rutas de las cámaras dentro del contenedor, separadas por comas (ej. `/dev/video0,/dev/video2`).
+-   `BAUD_RATE`: Velocidad de comunicación con el ESP32 (por defecto `115200`).
+
+El script `app.py` detecta automáticamente el puerto serie (`/dev/ttyUSB*`, `/dev/ttyACM*`) disponible dentro del contenedor.
 
 ### 5. Flujo de Operación
 
@@ -300,8 +256,7 @@ Escenario: Un cliente saca un producto "A" (-1000g) e inmediatamente después, c
     }
   ]
 }
-```
-> **Nota**: La lógica de `high_temporal_swap_confirmed` es más robusta cuando los pesos son distintos, ya que la validación por peso (`products.json`) ayuda a confirmar. Sin embargo, la lógica temporal por sí sola es una mejora significativa para resolver intercambios de productos de peso idéntico que no están actualizados en la base de datos.
+```> **Nota**: La lógica de `high_temporal_swap_confirmed` es más robusta cuando los pesos son distintos, ya que la validación por peso (`products.json`) ayuda a confirmar. Sin embargo, la lógica temporal por sí sola es una mejora significativa para resolver intercambios de productos de peso idéntico que no están actualizados en la base de datos.
 
 
 
@@ -471,170 +426,3 @@ Para mejorar la fiabilidad del sistema y permitir la corrección de errores, se 
 Esto permite que un operador humano o un sistema de IA secundario pueda analizar las imágenes correspondientes a un `batch_id` específico para verificar qué ocurrió realmente y corregir el inventario si es necesario.
 
 
-
-
-### manjeo de instalacion de camaras
-
-Claro que sí! Aquí tienes un resumen de todo el proceso de depuración que hicimos, partiendo del problema que tenías con las rutas de ls -l /dev/v4l/by-path/.
-
-Resumen del Proceso de Depuración
-El Problema Original:
-
-Identificaste correctamente que para usar dos cámaras idénticas, necesitabas sus rutas por puerto físico, que obtuviste con ls -l /dev/v4l/by-path/.
-El problema fue que estas rutas (ej. pci-0000:00:14.0-usbv2-0:4:1.0-video-index0) contienen dos puntos (:).
-Docker Compose usa los dos puntos para separar la ruta del host de la ruta del contenedor (ej. HOST:CONTENEDOR), lo que causaba errores como too many colons o confusing device mapping.
-Intentos Fallidos (y por qué):
-
-Intentamos usar la "sintaxis larga" en la sección volumes, pero Docker Compose seguía teniendo problemas para interpretar esas rutas complejas.
-Sugerimos usar /dev/v4l/by-id/, pero tú acertadamente nos corregiste, explicando que al ser cámaras idénticas, no tenían IDs únicos, por lo que by-path era la única opción.
-La Solución Definitiva: Reglas udev Como no podíamos cambiar las rutas de las cámaras ni la sintaxis de Docker, decidimos "engañar" al sistema creando nuestros propios nombres de dispositivo, limpios y predecibles.
-
-¿Qué hicimos? Creamos un archivo de reglas en el sistema anfitrión (la nevera) en /etc/udev/rules.d/99-vorak-cameras.rules.
-¿Qué hace esa regla? Le dice al sistema operativo Linux:
-"Cada vez que detectes una cámara conectada en el puerto físico ...usbv2-0:1:1.0..., en lugar de solo llamarla video0, créale también un alias (un acceso directo) llamado /dev/cam_nevera_0".
-
-Hicimos lo mismo para la segunda cámara, creando el alias /dev/cam_nevera_1.
-El Resultado Final:
-
-Ahora, en tu docker-compose.yml, en lugar de usar las rutas largas y problemáticas, usamos nuestros nuevos alias, que son limpios y no tienen dos puntos:
-yaml
-devices:
-  - "/dev/ttyUSB0:/dev/ttyUSB0"
-  - "/dev/cam_nevera_0:/dev/video0" # <- Alias limpio y estable
-  - "/dev/cam_nevera_1:/dev/video1" # <- Alias limpio y estable
-Docker Compose ahora entiende perfectamente estas rutas, y las reglas udev se encargan de que /dev/cam_nevera_0 siempre apunte a la cámara correcta, sin importar si reinicias el equipo o desconectas y vuelves a conectar las cámaras.
-En resumen: Creamos alias personalizados y estables en el sistema operativo para evitar los caracteres que confundían a Docker Compose, logrando una configuración robusta y funcional. ¡Fue un gran trabajo en equipo!
-
-
-
-
-
-
-
--------------------------------------------------------------------------------------------------------
-
-
-Guía Definitiva: Configuración de Múltiples Cámaras USB Idénticas en Linux con Nombres Personalizados
-Este documento detalla el proceso validado para instalar dos o más cámaras USB idénticas en un sistema Linux (como Linux Mint), asignándoles nombres de dispositivo permanentes y personalizados para un uso fiable en cualquier aplicación, incluyendo Docker.
-
-Paso 1: Verificación Inicial del Hardware
-El primer paso es confirmar que el sistema operativo reconoce correctamente las cámaras a nivel de hardware y del subsistema de video.
-
-Instalar Herramientas de Video: Abre una terminal e instala el paquete v4l-utils, que contiene herramientas esenciales para interactuar con dispositivos de video.
-
-Bash
-
-sudo apt update
-sudo apt install v4l-utils
-Listar Dispositivos de Video: Con ambas cámaras conectadas, ejecuta el siguiente comando para listar todos los dispositivos de video que el sistema detecta.   
-
-Bash
-
-v4l2-ctl --list-devices
-La salida confirmará que ambas cámaras son reconocidas y mostrará los nodos de dispositivo que se les asignan temporalmente (ej. /dev/video0, /dev/video2, etc.). Es normal que cada cámara física cree dos nodos de video (index0 para captura y index1 para metadatos).   
-
-Paso 2: Configuración de Permisos de Usuario
-Para que las aplicaciones puedan acceder a las cámaras sin privilegios de administrador, el usuario debe pertenecer al grupo video.
-
-Añadir Usuario al Grupo video: Ejecuta el siguiente comando para añadir tu usuario actual al grupo video. La opción -aG es crucial para añadir al grupo sin eliminar al usuario de otros grupos.   
-
-Bash
-
-sudo usermod -aG video $USER
-Aplicar los Cambios: Para que la nueva membresía de grupo tenga efecto, debes cerrar la sesión por completo y volver a iniciarla. Este paso es obligatorio.
-
-Paso 3: Identificar la Ruta Física Única de cada Cámara
-El núcleo del problema con cámaras idénticas es que sus nombres (/dev/videoX) pueden cambiar en cada reinicio. La solución es identificarlas por el puerto USB físico al que están conectadas, que es un identificador estable.
-
-Conecta una cámara a la vez: Para evitar confusiones, conecta solo una cámara en el puerto deseado.
-
-Obtén la información del dispositivo: Usa udevadm para inspeccionar los atributos del dispositivo. Asume que la cámara conectada es /dev/video0 (ajústalo si es necesario según la salida de v4l2-ctl --list-devices).
-
-Bash
-
-udevadm info -a -n /dev/video0
-Encuentra el devpath: En la larga salida del comando, busca en los bloques de "parent device" una línea que diga ATTRS{devpath}. Este será un número corto que identifica la ruta en el bus USB (por ejemplo, 1 o 4). Anota este número.
-
-Repite para la otra cámara: Desconecta la primera cámara, conecta la segunda en su puerto designado y repite los pasos 2 y 3 para encontrar su devpath único.
-
-Paso 4: Crear una Regla udev para Nombres Personalizados y Permanentes
-Con los devpath únicos identificados, creamos una regla udev para que el sistema genere automáticamente enlaces simbólicos cortos y significativos cada vez que las cámaras se conecten.
-
-Crear el Archivo de Reglas: Abre un editor de texto con privilegios de administrador para crear un nuevo archivo de reglas. El número 99 asegura que se ejecute después de las reglas del sistema.   
-
-Bash
-
-sudo nano /etc/udev/rules.d/99-webcams.rules
-Escribir la Regla: Pega el siguiente contenido en el editor, sustituyendo 1 y 4 con los valores de devpath que encontraste en el paso anterior y cam_nevera_0/cam_nevera_1 con los nombres que desees.
-
-Fragmento de código
-
-# Cámara asignada al nombre 'cam_nevera_0' (identificada por el puerto físico con devpath "4")
-SUBSYSTEM=="video4linux", ATTRS{devpath}=="4", KERNEL=="video*", ATTR{index}=="0", SYMLINK+="cam_nevera_0", GROUP="video", MODE="0666"
-
-# Cámara asignada al nombre 'cam_nevera_1' (identificada por el puerto físico con devpath "1")
-SUBSYSTEM=="video4linux", ATTRS{devpath}=="1", KERNEL=="video*", ATTR{index}=="0", SYMLINK+="cam_nevera_1", GROUP="video", MODE="0666"
-ATTRS{devpath}: Identifica el puerto físico de forma fiable.   
-
-ATTR{index}=="0": Filtra para aplicar la regla solo al dispositivo de captura de video real, ignorando el de metadatos.   
-
-SYMLINK+="cam_nevera_0": La acción principal. Crea el enlace simbólico deseado en el directorio /dev/.   
-
-Guardar y Cerrar: En nano, presiona Ctrl + X, luego Y para guardar, y finalmente Enter.
-
-Aplicar las Nuevas Reglas: Recarga las reglas de udev y activa los cambios sin necesidad de reiniciar.
-
-Bash
-
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-Paso 5: Verificación Final y Uso
-Comprueba que tus nombres personalizados se hayan creado correctamente.
-
-Verificar los Enlaces: Con ambas cámaras conectadas, lista tus nuevos dispositivos:
-
-Bash
-
-ls -l /dev/cam*
-La salida debería mostrar tus nuevos nombres apuntando a los dispositivos /dev/videoX correspondientes.
-
-Uso en Aplicaciones: ¡Listo! Ahora puedes usar /dev/cam_nevera_0 y /dev/cam_nevera_1 en todas tus aplicaciones (OBS, scripts, Docker Compose, etc.). Estos nombres son permanentes, predecibles y significativos, resolviendo completamente el problema de la asignación aleatoria.
-
-
-comando
-udevadm info -a -n /dev/video0
-
-
-
-jumaar@le-id500:~$ v4l2-ctl --list-devices
-USB 2.0 Camera: USB Camera (usb-0000:00:14.0-1):
-	/dev/video0
-	/dev/video1
-	/dev/media0
-
-USB 2.0 Camera: USB Camera (usb-0000:00:14.0-4):
-	/dev/video2
-	/dev/video3
-	/dev/media1
-
-jumaar@le-id500:~$ ls -l /dev/cam*
-lrwxrwxrwx 1 root root 6 oct  2  2025 /dev/cam_nevera_0 -> video0
-lrwxrwxrwx 1 root root 6 oct  2  2025 /dev/cam_nevera_1 -> video2
-jumaar@le-id500:~$ ls -l /dev/v4l/by-path/.
-total 0
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usb-0:1:1.0-video-index0 -> ../../video0
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usb-0:1:1.0-video-index1 -> ../../video1
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usb-0:4:1.0-video-index0 -> ../../video2
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usb-0:4:1.0-video-index1 -> ../../video3
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usbv2-0:1:1.0-video-index0 -> ../../video0
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usbv2-0:1:1.0-video-index1 -> ../../video1
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usbv2-0:4:1.0-video-index0 -> ../../video2
-lrwxrwxrwx 1 root root 12 oct  2  2025 pci-0000:00:14.0-usbv2-0:4:1.0-video-index1 -> ../../video3
-jumaar@le-id500:~$ sudo nano /etc/udev/rules.d/99-webcams.rules
-[sudo] contraseña para jumaar:           
-jumaar@le-id500:~$ cat /etc/udev/rules.d/99-webcams.rules
-# Cámara 1 (puerto físico...-1, que actualmente es video2)
-SUBSYSTEM=="video4linux", ATTRS{devpath}=="4", KERNEL=="video*", ATTR{index}=="0", SYMLINK+="cam_nevera_1", GROUP="video", MODE="0666"
-
-# Cámara 2 (puerto físico...-4, que actualmente es video0)
-SUBSYSTEM=="video4linux", ATTRS{devpath}=="1", KERNEL=="video*", ATTR{index}=="0", SYMLINK+="cam_nevera_0", GROUP="video", MODE="0666"
