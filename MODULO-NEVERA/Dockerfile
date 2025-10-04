@@ -16,15 +16,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- ¡CORRECCIÓN CLAVE DE PERMISOS! ---
-# Añadimos el usuario root (que es el que corre la app por defecto en esta imagen)
-# a los grupos 'video' y 'dialout'. Los GID (997 y 20) son estándar en Debian/Ubuntu.
-RUN usermod -a -G video,dialout root
-
 # Copiar el resto del código de la aplicación
 COPY app.py .
 COPY products.json .
 COPY test_cameras.py .
+
+# Copiar el script de entrypoint y darle permisos de ejecución
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["entrypoint.sh"]
 
 # Comando para ejecutar la aplicación cuando el contenedor inicie
 CMD ["python", "app.py"]

@@ -1,14 +1,25 @@
-#!/bin/bash
+#!/bin/sh
 
-# Este script se ejecuta como root al iniciar el contenedor.
+# Este script se ejecuta al iniciar el contenedor para configurar los permisos de hardware.
 
-# 1. Corregir permisos de todos los volúmenes montados.
-#    Esto asegura que el usuario 'nevera' pueda escribir en los directorios que necesita.
-echo "Ajustando permisos de los volúmenes de la nevera..."
-chown -R nevera:nevera /app/status /app/offline_queue /app/review_queue /app/logs /app/db
+echo "Iniciando entrypoint para configurar permisos..."
 
-# 2. Lanzar la aplicación principal.
-#    'exec' reemplaza este script con el comando de python, que se convierte en el proceso principal.
-#    Se ejecuta como el usuario 'nevera' para mayor seguridad.
-#    El flag -E (--preserve-env) es crucial para que app.py herede las variables de entorno.
-exec sudo -E -u nevera /opt/venv/bin/python app.py
+# Lee los GIDs (Group IDs) de las variables de entorno.
+# Si no se proporcionan, usa valores por defecto comunes en Debian/Ubuntu.
+VIDEO_GID=${VIDEO_GID:-997}
+DIALOUT_GID=${DIALOUT_GID:-20}
+
+echo "Usando VIDEO_GID=${VIDEO_GID} y DIALOUT_GID=${DIALOUT_GID}"
+
+# Crea los grupos 'video' y 'dialout' dentro del contenedor con los GIDs correctos.
+# El flag '-f' (force) permite que el comando no falle si el grupo ya existe.
+groupadd -g "$VIDEO_GID" -f video
+groupadd -g "$DIALOUT_GID" -f dialout
+
+# Añade el usuario 'root' (que ejecuta la app) a estos grupos.
+usermod -a -G video,dialout root
+
+echo "Permisos configurados. Iniciando la aplicación principal (app.py)..."
+
+# Ejecuta el comando original del Dockerfile (CMD)
+exec "$@"

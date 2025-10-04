@@ -1,5 +1,19 @@
 ## Guía Completa MODULO-NEVERA
 
+### Prerrequisitos de Despliegue
+
+Antes de desplegar, asegúrate de cumplir con lo siguiente en el dispositivo final:
+
+1.  **Docker y Docker Swarm**: El entorno debe tener Docker instalado y haber sido inicializado como un nodo de Swarm (`docker swarm init`).
+2.  **Autenticación en GHCR**: Las imágenes de Docker son privadas y se alojan en GitHub Container Registry. Es **obligatorio** autenticarse antes de intentar desplegar el stack.
+    *   Crea un **Personal Access Token (PAT)** en tu cuenta de GitHub con el único permiso (`scope`) de **`read:packages`**.
+    *   En la terminal del dispositivo, ejecuta `docker login ghcr.io` e introduce tu usuario de GitHub y el PAT como contraseña.
+3.  **Clonación del Repositorio**: El código fuente debe estar clonado en el dispositivo, ya que algunos archivos de configuración y scripts se leen localmente.
+4.  **Creación de Secretos y Archivo `.env`**: Sigue la guía del `README.md` principal para crear los `docker secret` y el archivo `.env` con las variables de entorno necesarias.
+
+---
+
+
 -   **MODULO-SENSORES**: Este módulo es una configuración hecha en ESP32 (leer `documentacion.md` en `MODULO-SENSORES`), que nos envía un reporte de estado cada 30 segundos y eventos cuando la puerta se abre/cierra o cuando hay un cambio de peso.
 
 -   **HARDWARE Y ENTORNO DE EJECUCIÓN**: El sistema está diseñado para ejecutarse en un PC con un sistema operativo Linux que soporte Docker. La aplicación no se instala directamente en el anfitrión, sino que se ejecuta dentro de un **contenedor Docker**, lo que garantiza un entorno consistente y aislado.
@@ -424,5 +438,3 @@ Para mejorar la fiabilidad del sistema y permitir la corrección de errores, se 
 4.  El log del sistema registrará una advertencia (`❗`) indicando que la sesión ha sido guardada para revisión.
 
 Esto permite que un operador humano o un sistema de IA secundario pueda analizar las imágenes correspondientes a un `batch_id` específico para verificar qué ocurrió realmente y corregir el inventario si es necesario.
-
-

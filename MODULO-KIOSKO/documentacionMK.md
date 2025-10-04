@@ -90,21 +90,22 @@ Toda la gestión del ciclo de vida de la aplicación se realiza a través de com
     GRAFANA_CLOUD_PROMETHEUS_URL="https://prometheus-prod-..."
     GRAFANA_CLOUD_PROMETHEUS_USER="123456"
     ```
-4.  **Secretos de Docker (para Docker Swarm):** Si se despliega en un clúster Swarm, es necesario crear los secretos para las claves sensibles. Ejecute los siguientes comandos e ingrese la clave correspondiente cuando se le solicite.
- 
-    *   **Secreto de la Nevera:**
-        ```bash
-        docker secret create fridge_secret -
-        ```
 
-    *   **Secreto de Grafana Cloud:**
+2.  **Autenticarse en el Registro de Contenedores (GHCR)**: Las imágenes de la aplicación son privadas. Debes iniciar sesión en el registro de contenedores de GitHub para poder descargarlas.
+    *   Primero, crea un Personal Access Token (PAT) en GitHub con el permiso (`scope`) **`read:packages`**.
+    *   Luego, ejecuta el siguiente comando en tu terminal:
         ```bash
-        docker secret create grafana_cloud_api_key -
+        docker login ghcr.io
         ```
- 
-### Comandos de Gestión
+    *   **Username**: Tu usuario de GitHub.
+    *   **Password**: El Personal Access Token que acabas de crear.
 
-Estos comandos son para gestionar el entorno de **desarrollo local** y utilizan un archivo `docker-compose.yml` (no el `docker-stack.yml` de producción). Ejecútelos desde el directorio raíz del proyecto.
+
+ 
+### Comandos de Gestión (Desarrollo Local)
+Estos comandos utilizan `docker-compose.yml` para un entorno de desarrollo local. Ejecútelos desde el directorio raíz del proyecto.
+
+
 
 
 ```bash
@@ -174,10 +175,11 @@ Los secretos guardan información sensible como claves de API y contraseñas de 
 
 ```bash
 # Secreto para la autenticación de la nevera con el backend
-sudo docker secret create fridge_secret -
+printf "TU_CLAVE_SECRETA_AQUI" | sudo docker secret create fridge_secret -
 
-# Secreto para enviar métricas a Grafana Cloud
-sudo docker secret create grafana_cloud_api_key -
+# Secretos para enviar métricas y logs a Grafana Cloud
+printf "TU_API_KEY_DE_PROMETHEUS" | sudo docker secret create grafana_cloud_prometheus_api_key -
+printf "TU_API_KEY_DE_LOKI" | sudo docker secret create grafana_cloud_loki_api_key -
 ```
 Después de ejecutar cada comando, pega la clave correspondiente y presiona `Enter`.
 
@@ -188,13 +190,13 @@ Con todo preparado, despliega las pilas de servicios usando los archivos `docker
 1.  **Desplegar el Stack de la Aplicación (Nevera y Kiosko):**
     ```bash
     # Navega al directorio del MODULO-NEVERA o donde esté tu stack principal
-    sudo docker stack deploy -c docker-stack.yml vorak-app
+    sudo docker stack deploy --with-registry-auth -c docker-stack.yml vorak-app
     ```
 
 2.  **Desplegar el Stack de Monitoreo (Prometheus, cAdvisor, etc.):**
     ```bash
     # Navega al directorio del MODULO-MONITORING
-    sudo docker stack deploy -c docker-stack.monitoring.yml vorak-monitoring
+    sudo docker stack deploy --with-registry-auth -c docker-stack.monitoring.yml vorak-monitoring
     ```
 
 ### Paso 5: Verificar el Despliegue
@@ -213,4 +215,18 @@ sudo docker stack services vorak-monitoring
 
 # Muestra todos los contenedores en ejecución en el nodo
 sudo docker ps
+```
+
+### Paso 6: Detener los Stacks
+
+Si necesitas detener la aplicación, puedes eliminar los stacks. Esto detendrá y eliminará los contenedores, pero **no borrará los volúmenes de datos** como la base de datos de productos o las colas offline.
+
+```bash
+# Detener el stack de la aplicación
+sudo docker stack rm vorak-app
+
+# Detener el stack de monitoreo
+sudo docker stack rm vorak-monitoring
+```
+
 ```
