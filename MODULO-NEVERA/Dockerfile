@@ -13,16 +13,16 @@ WORKDIR /app
 
 # Copiar el archivo de requerimientos e instalar las dependencias de Python
 # Hacemos esto ANTES de copiar el resto del código para aprovechar la caché de Docker.
-COPY requirements.txt .
+COPY MODULO-NEVERA/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el resto del código de la aplicación
-COPY app.py .
-COPY products.json .
-COPY test_cameras.py .
+COPY MODULO-NEVERA/app.py .
+COPY MODULO-NEVERA/products.json .
+COPY MODULO-NEVERA/test_cameras.py .
 
 # Copiar el script de entrypoint y darle permisos de ejecución
-COPY entrypoint.sh /usr/local/bin/
+COPY MODULO-NEVERA/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["entrypoint.sh"]
 
