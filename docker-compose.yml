@@ -49,12 +49,20 @@ services:
     ports:
       # Expone el puerto del servidor web para que el navegador del host pueda acceder
       - "5000:5000"
+      # --- ¡NUEVO! Expone el puerto para el webhook ---
+      - "9091:5000" # Mapeamos un puerto externo (9091) al puerto interno del kiosko (5000)
     environment:
       # Leídas desde el archivo .env en la raíz del proyecto
       - FRIDGE_ID=${FRIDGE_ID}
       - BASE_BACKEND_URL=${BASE_BACKEND_URL}
       - FRIDGE_SECRET=${FRIDGE_SECRET}
+      # --- ¡NUEVO! Variables para el webhook y el login a GHCR ---
+      - GHCR_USER=${GHCR_USER}
+      - GHCR_TOKEN=${GHCR_TOKEN}
     volumes:
+      # --- ¡NUEVO! Permisos para controlar Docker ---
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app/project_root # Monta el proyecto para que el script encuentre los .yml
       # Volumen para la caché de medios y la playlist
       - kiosk_data:/app/data
       # Volumen compartido para leer el estado de la nevera
@@ -93,20 +101,6 @@ services:
   #--------------------------------------------------------------------------
   # STACK DE MONITOREO - Portainer, Prometheus, etc.
   #--------------------------------------------------------------------------
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: vorak-portainer
-    command: -H unix:///var/run/docker.sock
-    ports:
-      - "9443:9443"
-      - "8000:8000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    restart: unless-stopped
-    networks:
-      - vorak-net
-
   prometheus:
     # --- ¡CORRECCIÓN! ---
     # Usamos 'build' para crear una imagen personalizada que incluya 'envsubst'.
@@ -180,6 +174,24 @@ services:
     networks:
       - vorak-net
 
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: vorak-node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - vorak-net
+
+
+
 #--------------------------------------------------------------------------
 # RED Y VOLÚMENES
 #--------------------------------------------------------------------------
@@ -205,5 +217,4 @@ volumes:
   nevera_review_queue:
   kiosk_data:
   fridge_status: # Volumen clave para la comunicación entre servicios nevera y kiosko
-  portainer_data: # Volumen para persistir los datos de Portainer (si se despliega localmente)
   backup_data: # Volumen para almacenar los archivos de backup

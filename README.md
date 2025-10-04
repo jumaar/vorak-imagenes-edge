@@ -98,6 +98,16 @@ El sistema se divide en dos pilas: la aplicación principal y el monitoreo.
     *   **Promtail**: Recolecta logs de todos los contenedores y los envía a Grafana Loki.
     *   **cAdvisor & Node Exporter**: Exponen métricas detalladas de los contenedores y del hardware del nodo.
 
+3.  **El servicio backup** 
+    es un contenedor muy simple basado en alpine:latest (una imagen de Linux muy ligera). Su única  tarea es ejecutar un script (backup.sh) cada 24 horas. 
+            El backup está diseñado para copiar los datos más críticos que genera el servicio nevera y que no se pueden recuperar si se pierden:
+
+        nevera_offline_queue: Es la cola de transacciones que no se pudieron enviar al backend por falta de conexión. ¡Es vital respaldar esto para no perder ventas!
+        nevera_review_queue: Son las imágenes de las sesiones de compra que el sistema marcó como "baja confianza". Son importantes para auditoría y para mejorar el sistema.
+
+        En resumen: El backup toma los datos de las colas, los comprime y guarda el archivo resultante en el volumen backup_data, todo dentro del mismo PC.
+
+
 ### 2.3. Configuración de Actualizaciones Automáticas (Webhook)
 ### 2.3. Gestión y Eliminación de Stacks
 

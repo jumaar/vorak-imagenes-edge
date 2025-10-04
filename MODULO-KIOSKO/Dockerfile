@@ -1,12 +1,21 @@
 # Dockerfile para el servicio kiosko-webapp (solo el servidor Flask)
 FROM python:3.11-alpine
 
+# --- ¡NUEVO! Instalar el cliente de Docker ---
+# Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker'.
+RUN apk add --no-cache docker-cli
+
 # Establecer el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
 # Copiar el archivo de requisitos e instalar las dependencias
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+ 
+# --- ¡NUEVO! Copiar el script de redespliegue y darle permisos de ejecución ---
+COPY redeploy.sh .
+COPY ../manage-secrets.sh .
+RUN chmod +x redeploy.sh manage-secrets.sh
 
 # Copiar el código de la aplicación y los directorios de plantillas/estáticos
 COPY kiosk.py .

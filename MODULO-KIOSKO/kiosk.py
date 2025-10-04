@@ -2,9 +2,10 @@ import os
 import time
 import threading
 import requests
+import subprocess
 import json
 import logging
-from flask import Flask, render_template, jsonify, send_from_directory
+from flask import Flask, render_template, jsonify, send_from_directory, abort, request
 
 # ==============================================================================
 # --- CONFIGURACIÓN DEL KIOSKO ---
@@ -218,6 +219,68 @@ def get_playlist():
 def serve_media(filename):
     """Sirve los archivos de medios cacheados (imágenes, videos)."""
     return send_from_directory(CACHE_DIR, filename)
+
+# --- ¡NUEVO! FUNCIÓN TRABAJADORA PARA EL DESPLIEGUE ---
+def _run_deployment_script():
+    """
+    Ejecuta el script de redespliegue en segundo plano, espera a que termine
+    y registra el resultado. Esto se ejecuta en un hilo separado para no
+    bloquear la respuesta del webhook.
+    """
+    logging.info("[Deploy] Iniciando ejecución de redeploy.sh en segundo plano...")
+    try:
+        # Usamos subprocess.run para esperar a que el script termine y capturar su salida.
+        result = subprocess.run(
+            ["/app/redeploy.sh"],
+            capture_output=True,
+            text=True,
+            check=False  # No lanzar excepción si falla, lo manejaremos manualmente.
+        )
+
+        # Registrar la salida estándar del script para tener el detalle completo.
+        if result.stdout:
+            logging.info(f"[Deploy] Salida del script:\n{result.stdout.strip()}")
+
+        # Si hubo un error, registrarlo también.
+        if result.stderr:
+            logging.error(f"[Deploy] Errores del script:\n{result.stderr.strip()}")
+
+        if result.returncode == 0:
+            logging.info("✅ [Deploy] El script de redespliegue finalizó con ÉXITO.")
+        else:
+            logging.error(f"❌ [Deploy] El script de redespliegue FALLÓ con código de salida {result.returncode}.")
+    except Exception as e:
+        logging.critical(f"CRÍTICO: No se pudo ejecutar el hilo de despliegue: {e}")
+
+# --- ¡NUEVO! ENDPOINT PARA EL WEBHOOK DE REDESPLIEGUE ---
+@app.route('/update/<token>', methods=['POST'])
+def handle_webhook(token):
+    """
+    Escucha las llamadas del webhook de GitHub Actions para redesplegar la aplicación.
+    """
+    # 1. Validar que el token de la URL sea el correcto.
+    #    Se reutiliza el secreto de la nevera para mayor simplicidad y seguridad.
+    if not FRIDGE_SECRET or token != FRIDGE_SECRET:
+        logging.warning(f"Intento de acceso no autorizado al webhook con token: {token}")
+        abort(401) # Unauthorized
+
+    # 2. Validar que la petición venga de GitHub (seguridad extra)
+    user_agent = request.headers.get('User-Agent', '')
+    if not user_agent.startswith('GitHub-Hookshot/'):
+        logging.warning(f"Petición de webhook rechazada de User-Agent no válido: {user_agent}")
+        abort(403) # Forbidden
+
+    # 3. Ejecutar el script de redespliegue en segundo plano
+    logging.info("Webhook autorizado recibido. Ejecutando script de redespliegue...")
+    try:
+        # Creamos y lanzamos el hilo que hará el trabajo pesado.
+        deployment_thread = threading.Thread(target=_run_deployment_script, daemon=True)
+        deployment_thread.start()
+        return "Proceso de redespliegue iniciado.", 202 # Accepted
+    except Exception as e:
+        logging.error(f"Error al ejecutar el script de redespliegue: {e}")
+        return "Fallo al iniciar el proceso de redespliegue.", 500
+
 
 # ==============================================================================
 # --- PUNTO DE ENTRADA ---

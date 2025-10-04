@@ -39,25 +39,10 @@ services:
       - nevera_offline_queue:/app/offline_queue
       - nevera_review_queue:/app/review_queue
       - fridge_status:/app/status
-<<<<<<< HEAD
     devices:
       - "/dev/video0:/dev/video0"
       - "/dev/video2:/dev/video2"
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-=======
-      # --- WORKAROUND PARA SWARM: Mapear dispositivos como volúmenes ---
-      # Swarm ignora la clave 'devices', por lo que los montamos como si fueran archivos.
-      # Esto, combinado con 'privileged: true', da acceso al hardware.
-      - type: bind
-        source: /dev/video0
-        target: /dev/video0
-      - type: bind
-        source: /dev/video2
-        target: /dev/video2
-      - type: bind
-        source: /dev/ttyUSB0
-        target: /dev/ttyUSB0
->>>>>>> 427a20a (compose funcionando)
     networks:
       - vorak-net
     secrets:
@@ -66,12 +51,6 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
-<<<<<<< HEAD
-=======
-      placement:
-        constraints:
-          - node.labels.has_hardware == true
->>>>>>> 427a20a (compose funcionando)
     # --- ¡CORRECCIÓN DE PERMISOS AVANZADA! ---
     # Le damos al contenedor privilegios elevados para asegurar el acceso al hardware.
     # Esto es a menudo necesario para dispositivos como cámaras o puertos serie en Swarm.
@@ -117,11 +96,24 @@ services:
         published: 5000
         protocol: tcp
         mode: host
+      # --- ¡NUEVO! Expone el puerto para el webhook en modo host ---
+      - target: 9091
+        published: 9091
+        protocol: tcp
+        mode: host
     environment:
       - FRIDGE_ID=${FRIDGE_ID}
       - BASE_BACKEND_URL=${BASE_BACKEND_URL}
-      # No pasamos el secreto como variable, kiosk.py lo lee del archivo
+      # --- ¡NUEVO! Variables para que el webhook pueda autenticarse en GHCR ---
+      # Estas variables deben ser exportadas en la terminal antes de desplegar.
+      - GHCR_USER=${GHCR_USER}
+      - GHCR_TOKEN=${GHCR_TOKEN}
     volumes:
+      # --- ¡NUEVO! Permisos para que el kiosko controle Docker y encuentre los archivos ---
+      # Monta el socket de Docker para que el script redeploy.sh pueda ejecutar comandos.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Monta el directorio del proyecto para que el script encuentre docker-stack.app.yml y .env
+      - .:/app/project_root
       - kiosk_data:/app/data
       - fridge_status:/app/status
     networks:

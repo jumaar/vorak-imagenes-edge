@@ -80,14 +80,12 @@ jobs:
     needs: build-and-push # Se ejecuta solo si el job anterior fue exitoso
 
     steps:
-      - name: Trigger Portainer Webhook for App Stack
-        uses: distributhor/workflow-webhook@v3
-        with:
-          webhook_url: ${{ secrets.PORTAINER_WEBHOOK_APP }}
-          verbose: true
-
-      - name: Trigger Portainer Webhook for Monitoring Stack
-        uses: distributhor/workflow-webhook@v3
-        with:
-          webhook_url: ${{ secrets.PORTAINER_WEBHOOK_MONITORING }}
-          verbose: true
+      - name: Trigger Redeployment via Kiosk Webhook
+        run: |
+          # Llama al endpoint del webhook en el servicio kiosko.
+          # La URL debe apuntar al dominio público configurado en tu túnel de Cloudflare.
+          # El FRIDGE_SECRET se usa como token de autenticación.
+          curl -X POST "https://nevera1.lenstextil.com/update/${{ secrets.FRIDGE_SECRET }}"
+        env:
+          # Asegúrate de tener el secreto FRIDGE_SECRET configurado en tu repositorio de GitHub.
+          FRIDGE_SECRET: ${{ secrets.FRIDGE_SECRET }}

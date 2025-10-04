@@ -20,11 +20,7 @@ services:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
     secrets:
-<<<<<<< HEAD
-      # Carga la clave de la API de Prometheus de Grafana Cloud de forma segura
-=======
       # Carga la clave de la API de Grafana Cloud de forma segura
->>>>>>> 427a20a (compose funcionando)
       - grafana_cloud_prometheus_api_key
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -57,10 +53,6 @@ services:
       - source: promtail_config
         target: /etc/promtail/config.yml
     secrets:
-<<<<<<< HEAD
-      # Carga la clave de la API de Loki de Grafana Cloud de forma segura
-=======
->>>>>>> 427a20a (compose funcionando)
       - grafana_cloud_loki_api_key
     command: -config.file=/etc/promtail/config.yml
     networks:
@@ -105,25 +97,6 @@ services:
       restart_policy:
         condition: on-failure
 
-  # Servicio de Portainer: Interfaz gráfica para gestionar el clúster Swarm
-  portainer:
-    image: portainer/portainer-ce:latest
-    command: -H unix:///var/run/docker.sock --data /data
-    ports:
-      - "9443:9443" # Puerto de la interfaz web de Portainer
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # Monta el socket de Docker para gestión
-      - portainer_data:/data # Volumen para persistir los datos de Portainer
-    networks:
-      - vorak-net
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager] # Ejecutar en un nodo manager
-      restart_policy:
-        condition: on-failure
-
 # Definición de los recursos externos que usará este stack
 configs:
   prometheus_config:
@@ -132,18 +105,7 @@ configs:
     file: ./promtail-config.yml
 
 secrets:
-<<<<<<< HEAD
-  # Secreto para la API de Prometheus. Debe ser creado manualmente en el nodo Swarm.
   grafana_cloud_prometheus_api_key:
     external: true
-  # Secreto para la API de Loki. Debe ser creado manualmente en el nodo Swarm.
-=======
-  grafana_cloud_prometheus_api_key:
-    external: true
->>>>>>> 427a20a (compose funcionando)
   grafana_cloud_loki_api_key:
     external: true
-
-# Volumen para que Loki guarde los logs de forma persistente
-volumes:
-  portainer_data:
