@@ -170,6 +170,7 @@ def sync_with_admin_backend(stop_event, auth_manager):
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
+# Se vuelve a una única instancia de Flask para simplificar.
 app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
 
 # Desactivar los logs de acceso de Werkzeug (el servidor que usa Flask).
@@ -296,10 +297,10 @@ if __name__ == '__main__':
     sync_thread = threading.Thread(target=sync_with_admin_backend, args=(stop_sync_event, auth_manager), daemon=True)
     sync_thread.start()
     
-    logging.info(f"Iniciando servidor del kiosko en http://localhost:{FLASK_PORT}")
-    
     try:
-        app.run(host='0.0.0.0', port=FLASK_PORT, debug=False)
+        logging.info(f"Iniciando servidor del kiosko en http://localhost:{FLASK_PORT}")
+        # El servidor se inicia con el CMD del Dockerfile, aquí el hilo principal solo espera.
+        stop_sync_event.wait()
     except KeyboardInterrupt:
         logging.info("Deteniendo el servidor del kiosko...")
     finally:

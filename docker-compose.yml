@@ -52,8 +52,8 @@ services:
     ports:
       # Expone el puerto del servidor web para que el navegador del host pueda acceder
       - "5000:5000"
-      # --- ¡NUEVO! Expone el puerto para el webhook ---
-      - "9091:5000" # Mapeamos un puerto externo (9091) al puerto interno del kiosko (5000)
+      # Expone el puerto para el webhook, que apunta al mismo servidor interno.
+      - "9091:5000"
     environment:
       # Leídas desde el archivo .env en la raíz del proyecto
       - FRIDGE_ID=${FRIDGE_ID}

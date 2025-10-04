@@ -23,7 +23,7 @@ COPY MODULO-KIOSKO/templates/ templates/
 COPY MODULO-KIOSKO/static/ static/
 
 # Exponer el puerto en el que Gunicorn escuchará
-EXPOSE 5000
+EXPOSE 5000 9091
 
 # Comando para iniciar Gunicorn
 # Gunicorn buscará la aplicación 'app' dentro del módulo 'kiosk.py'
