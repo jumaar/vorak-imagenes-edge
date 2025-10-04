@@ -41,8 +41,11 @@ services:
   #--------------------------------------------------------------------------
   kiosko:
     # --- ¡CORRECCIÓN! ---
-    # Añadimos la clave 'build' también para el servicio del kiosko.
-    build: ./MODULO-KIOSKO
+    # Cambiamos el contexto a la raíz del proyecto (.) para que el Dockerfile
+    # pueda copiar archivos como 'manage-secrets.sh' desde fuera de su carpeta.
+    build:
+      context: .
+      dockerfile: ./MODULO-KIOSKO/Dockerfile
     image: vorak-kiosko:local # <-- Usaremos esta imagen local
     container_name: vorak-kiosko
     restart: unless-stopped
