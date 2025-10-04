@@ -24,6 +24,7 @@ jobs:
     permissions:
       contents: read
       packages: write # Permiso para escribir en GitHub Packages (ghcr.io)
+      actions: write # Permiso para escribir en la caché de GitHub Actions
 
     strategy:
       # Ejecuta un trabajo para cada servicio en paralelo
