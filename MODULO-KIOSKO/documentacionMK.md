@@ -16,11 +16,11 @@ Esta separación simplifica drásticamente el contenedor del kiosko, que ya no n
 
 
 
-## TAREAS  --> V 0.3
+## TAREAS  --> V 0.4
 
 NOTA: en este apartado se colocan ideas y posibles mejoras a futuro , cuando se coloca una queda pendiente, si la tarea se realiza esta se elinina de aca y se implementa inmediatamente en la docuentacion si la mejora fuera positiva.( si esta vacio no hay nada pendiente)
 
-- Tarea fija: En que version de este modulo estamos para git?  -> 0.3
+- Tarea fija: En que version de este modulo estamos para git?  -> 0.4
 
 
 
@@ -42,18 +42,19 @@ El sistema se orquesta a través de `docker-stack.yml`, que define y conecta los
 
 ### 2. Servicio `kiosko`
 
-- **Propósito:** Es la cara visible del sistema. Su única función es mostrar la interfaz web en la pantalla del dispositivo físico.
+- **Propósito Dual:**
+    1.  **Interfaz de Usuario:** Sirve la aplicación web (HTML, CSS, JS) a la que accede el navegador del dispositivo físico.
+    2.  **Orquestador de Despliegue:** Actúa como el cerebro del proceso de CI/CD, recibiendo notificaciones (webhooks) para actualizar todo el stack de la aplicación de forma automática.
+
 - **Componentes Clave:**
-    - **`Dockerfile`:** Construye una imagen Debian con `Xorg`, el gestor de ventanas `Openbox` y `Chromium`. Instala la aplicación Python (`kiosk.py`) en un entorno virtual.
-    - **`kiosk.py`:** Un servidor web Flask que sirve la página principal y proporciona APIs internas para que el frontend obtenga la playlist de medios y el estado de la nevera (leyendo el `fridge_status.json` del volumen compartido).
-    - **`.xsession`:** Un script de sesión gráfica que se encarga de:
-        - Desactivar el salvapantallas.
-        - Lanzar el gestor de ventanas `Openbox`.
-        - Ejecutar `Chromium` en un bucle infinito para asegurar que siempre esté visible, apuntando al servidor local `http://localhost:5000`.
-    - **`entrypoint.sh`:** El script que orquesta el arranque del contenedor:
-        1.  Ajusta los permisos de los volúmenes.
-        2.  Inicia el servidor `kiosk.py` en segundo plano.
-        3.  Lanza la sesión gráfica ejecutando el script `.xsession`.
+    - **`Dockerfile`:** Construye una imagen Python ligera (basada en Alpine) que incluye el cliente de Docker (`docker-cli`). Esto es fundamental para que el contenedor pueda interactuar con el Docker socket del host y gestionar otros contenedores.
+    - **`kiosk.py`:** Un servidor web Flask que cumple dos funciones críticas:
+        1.  **APIs para la UI:** Proporciona endpoints para que el frontend consulte datos dinámicos, como la playlist de medios o el estado actual de la nevera (leyendo `fridge_status.json` del volumen compartido).
+        2.  **Webhook de Despliegue (`/update/<secret>`):** Expone un endpoint seguro que, al ser llamado por el pipeline de CI/CD (GitHub Actions), inicia el proceso de actualización. Verifica un secreto compartido para prevenir ejecuciones no autorizadas.
+    - **`redeploy.sh` (Internalizado en la imagen):** Este script contiene la lógica para redesplegar el stack. Es ejecutado por `kiosk.py` al recibir un webhook válido. Sus tareas son:
+        1.  Autenticarse en el registro de contenedores (`ghcr.io`) usando credenciales seguras.
+        2.  Ejecutar `docker stack deploy` para indicarle a Swarm que descargue las nuevas versiones de las imágenes y actualice los servicios correspondientes.
+    - **`manage-secrets.sh`:** Un script de utilidad, también dentro de la imagen, que podría usarse para gestionar la creación o actualización de secretos de Docker si fuera necesario.
 
 ### 3. Conexión con el Entorno Gráfico del Host
 

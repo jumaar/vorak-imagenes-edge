@@ -81,10 +81,24 @@ jobs:
     steps:
       - name: Trigger Redeployment via Kiosk Webhook
         run: |
-          # Llama al endpoint del webhook en el servicio kiosko.
-          # La URL debe apuntar al dominio público configurado en tu túnel de Cloudflare.
-          # El FRIDGE_SECRET se usa como token de autenticación.
-          curl -X POST "https://nevera1.lenstextil.com/update/${{ secrets.FRIDGE_SECRET }}"
-        env:
-          # Asegúrate de tener el secreto FRIDGE_SECRET configurado en tu repositorio de GitHub.
-          FRIDGE_SECRET: ${{ secrets.FRIDGE_SECRET }}
+          echo "🚀 Triggering redeployment..."
+          # Hacemos la petición y guardamos el código de estado HTTP y la salida.
+          # -f: Falla si el código de estado es >= 400.
+          # -s: Modo silencioso (no muestra barra de progreso).
+          # -S: Muestra errores si -s está activado.
+          # -w "%{http_code}": Escribe el código de estado en stdout.
+          # --output response.txt: Guarda el cuerpo de la respuesta en un archivo.
+          HTTP_STATUS=$(curl -f -sS -w "%{http_code}" \
+            -X POST "https://nevera1.lenstextil.com/update/${{ secrets.FRIDGE_SECRET }}" \
+            --output response.txt)
+
+          echo "📄 Server response:"
+          cat response.txt
+
+          # Verificamos si el código de estado es el esperado (202).
+          if [ "$HTTP_STATUS" -eq 202 ]; then
+            echo "✅ Deployment successfully triggered (HTTP $HTTP_STATUS)."
+          else
+            echo "❌ Deployment trigger failed with HTTP status $HTTP_STATUS."
+            exit 1
+          fi

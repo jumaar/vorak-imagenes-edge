@@ -5,7 +5,9 @@ services:
   nevera:
     # --- ¡CORRECCIÓN! ---
     # Añadimos la clave 'build' para decirle a Compose cómo construir la imagen.
-    build: ./MODULO-NEVERA
+    build:
+      context: .
+      dockerfile: ./MODULO-NEVERA/Dockerfile
     image: vorak-nevera:local # <-- Usaremos esta imagen local
     container_name: vorak-nevera
     restart: unless-stopped
