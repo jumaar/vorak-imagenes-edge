@@ -45,16 +45,22 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/vorak-edge/${{ matrix.service }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/vorak-imagenes-egde/${{ matrix.service }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=,suffix=,format=short
 
+      - name: Set up build context path
+        id: paths
+        run: |
+          SERVICE_UPPER=$(echo "${{ matrix.service }}" | tr '[:lower:]' '[:upper:]')
+          echo "CONTEXT_PATH=./MODULO-${SERVICE_UPPER}" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./MODULO-${{ toUpper(matrix.service) }}
-          file: ./MODULO-${{ toUpper(matrix.service) }}/Dockerfile
+          context: ${{ env.CONTEXT_PATH }}
+          file: ${{ env.CONTEXT_PATH }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

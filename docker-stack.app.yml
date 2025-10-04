@@ -23,7 +23,7 @@ services:
   nevera:
     # La imagen ahora apunta a GitHub Container Registry.
     # El workflow de CI/CD se encarga de construirla y publicarla.
-    image: ghcr.io/jumaar/vorak-edge/nevera:latest
+    image: ghcr.io/jumaar/vorak-imagenes-egde/nevera:latest
     environment:
       - FRIDGE_ID=${FRIDGE_ID}
       - BASE_BACKEND_URL=${BASE_BACKEND_URL}
@@ -78,7 +78,7 @@ services:
   kiosko:
     # La imagen ahora apunta a GitHub Container Registry.
     # El workflow de CI/CD se encarga de construirla y publicarla.
-    image: ghcr.io/jumaar/vorak-edge/kiosko:latest
+    image: ghcr.io/jumaar/vorak-imagenes-egde/kiosko:latest
     ports:
       - "5000:5000"
     environment:
