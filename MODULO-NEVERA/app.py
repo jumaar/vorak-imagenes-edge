@@ -18,7 +18,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # ==============================================================================
 # --- CONFIGURACIÓN PRINCIPAL ---
 # ==============================================================================
-FRIDGE_ID = os.getenv("FRIDGE_ID", "NEVERA-001-SANTAROSA")
+FRIDGE_ID = os.getenv("FRIDGE_ID")
 # Detección automática de puertos serie. Busca dispositivos comunes del ESP32.
 # Esto elimina la necesidad de la variable de entorno SERIAL_PORTS.
 SERIAL_PORTS = glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*')
@@ -69,7 +69,7 @@ STATUS_REPORT_SEND_INTERVAL_SECONDS = 900 # 15 minutos. Intervalo para enviar re
 # --- Configuración de Logging ---
 LOG_FILE_PATH = os.path.join(SCRIPT_DIR, "fridge_service.log")
 LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
-LOG_BACKUP_COUNT = 5 # Mantiene hasta 5 archivos de log antiguos
+LOG_BACKUP_COUNT = 2 # Mantiene hasta 2 archivos de log antiguos
 
 # --- Configuración de Revisión ---
 REVIEW_QUEUE_PATH = os.path.join(SCRIPT_DIR, "review_queue") # Carpeta para guardar imágenes de sesiones de baja confianza.

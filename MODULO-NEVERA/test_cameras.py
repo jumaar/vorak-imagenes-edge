@@ -2,7 +2,6 @@ import cv2
 import os
 import threading
 import time
-from collections import deque
 
 # Lee las cámaras desde la variable de entorno, igual que app.py
 CAMERA_DEVICES = [cam.strip() for cam in os.getenv("CAMERA_DEVICES", "").split(',') if cam.strip()]

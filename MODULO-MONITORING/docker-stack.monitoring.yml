@@ -1,0 +1,137 @@
+version: '3.8'
+
+networks:
+  vorak-net:
+    external: true # Asume que la red 'vorak-net' ya fue creada externamente
+
+services:
+  # Servicio de Prometheus: El cerebro que recolecta y envía las métricas
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    volumes:
+      # Necesita acceso al socket de Docker para descubrir otros servicios
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    environment:
+      # Pasa las credenciales de Grafana Cloud desde un archivo .env
+      - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
+      - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
+    configs:
+      # Carga la configuración de prometheus.yml que creamos antes
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    secrets:
+      # Carga la clave de la API de Prometheus de Grafana Cloud de forma segura
+      - grafana_cloud_prometheus_api_key
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - vorak-net # Se conecta a la red de la aplicación para poder ver los otros servicios
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        # Es buena práctica correr Prometheus en un nodo manager
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+  # Servicio de Promtail: Agente que recolecta y envía los logs a Loki
+  promtail:
+    image: grafana/promtail:2.9.2
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Pasa las credenciales de Grafana Loki desde el archivo .env
+      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
+      - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
+    configs:
+      - source: promtail_config
+        target: /etc/promtail/config.yml
+    secrets:
+      # Carga la clave de la API de Loki de Grafana Cloud de forma segura
+      - grafana_cloud_loki_api_key
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - vorak-net
+    deploy:
+      mode: global # Un agente por cada nodo del clúster
+      restart_policy:
+        condition: on-failure
+
+  # cAdvisor: Expone métricas de rendimiento de los contenedores
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - vorak-net
+    deploy:
+      # Se despliega en TODOS los nodos del clúster para monitorearlos todos
+      mode: global
+      restart_policy:
+        condition: on-failure
+
+  # Node Exporter: Expone métricas de rendimiento del hardware del nodo
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - vorak-net
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+
+  # Servicio de Portainer: Interfaz gráfica para gestionar el clúster Swarm
+  portainer:
+    image: portainer/portainer-ce:latest
+    command: -H unix:///var/run/docker.sock --data /data
+    ports:
+      - "9443:9443" # Puerto de la interfaz web de Portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Monta el socket de Docker para gestión
+      - portainer_data:/data # Volumen para persistir los datos de Portainer
+    networks:
+      - vorak-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager] # Ejecutar en un nodo manager
+      restart_policy:
+        condition: on-failure
+
+# Definición de los recursos externos que usará este stack
+configs:
+  prometheus_config:
+    file: ./prometheus.yml
+  promtail_config:
+    file: ./promtail-config.yml
+
+secrets:
+  # Secreto para la API de Prometheus. Debe ser creado manualmente en el nodo Swarm.
+  grafana_cloud_prometheus_api_key:
+    external: true
+  # Secreto para la API de Loki. Debe ser creado manualmente en el nodo Swarm.
+  grafana_cloud_loki_api_key:
+    external: true
+
+# Volumen para que Loki guarde los logs de forma persistente
+volumes:
+  portainer_data:

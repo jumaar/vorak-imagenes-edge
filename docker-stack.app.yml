@@ -1,0 +1,97 @@
+version: '3.8'
+
+# Este stack despliega la aplicación principal (nevera y kiosko).
+# Lee variables no sensibles del archivo .env en la máquina del manager.
+
+networks:
+  vorak-net:
+    external: true # Asume que la red ya fue creada con 'docker network create'
+
+secrets:
+  fridge_secret:
+    external: true # Asume que el secreto ya fue creado con 'docker secret create'
+
+volumes:
+  nevera_db:
+  nevera_offline_queue:
+  nevera_review_queue:
+  kiosk_data:
+  fridge_status:
+  backup_data:
+
+services:
+  nevera:
+    # La imagen ahora apunta a GitHub Container Registry.
+    # El workflow de CI/CD se encarga de construirla y publicarla.
+    image: ghcr.io/jumaar/vorak-edge/nevera:latest
+    environment:
+      - FRIDGE_ID=${FRIDGE_ID}
+      - BASE_BACKEND_URL=${BASE_BACKEND_URL}
+      - CAMERA_DEVICES=/dev/video0,/dev/video2
+      - BAUD_RATE=115200
+    volumes:
+      - nevera_db:/app/db
+      - nevera_offline_queue:/app/offline_queue
+      - nevera_review_queue:/app/review_queue
+      - fridge_status:/app/status
+    devices:
+      - "/dev/video0:/dev/video0"
+      - "/dev/video2:/dev/video2"
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    networks:
+      - vorak-net
+    secrets:
+      - fridge_secret
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  backup:
+    image: alpine:latest # Esta imagen pública es correcta
+    command: >
+      /bin/sh -c "
+        echo 'Contenedor de backup iniciado. El primer backup se ejecutará en 1 minuto...';
+        sleep 60;
+        while true; do
+          /backup/backup.sh;
+          echo 'Backup completado. Próxima ejecución en 24 horas.';
+          sleep 86400;
+        done
+      "
+    volumes:
+      # En Swarm, es mejor usar 'configs' para scripts, pero un bind mount funciona si el script está en el nodo.
+      # Asumimos que el repositorio está clonado en el nodo manager.
+      - ./MODULO-BACKUP/backup.sh:/backup/backup.sh
+      - nevera_offline_queue:/backups/source/offline_queue:ro
+      - nevera_review_queue:/backups/source/review_queue:ro
+      - backup_data:/backups/destination
+    networks:
+      - vorak-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == manager] # Es buena práctica ejecutar tareas de backup en el manager
+
+  kiosko:
+    # La imagen ahora apunta a GitHub Container Registry.
+    # El workflow de CI/CD se encarga de construirla y publicarla.
+    image: ghcr.io/jumaar/vorak-edge/kiosko:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - FRIDGE_ID=${FRIDGE_ID}
+      - BASE_BACKEND_URL=${BASE_BACKEND_URL}
+    volumes:
+      - kiosk_data:/app/data
+      - fridge_status:/app/status
+    networks:
+      - vorak-net
+    secrets:
+      - fridge_secret
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure

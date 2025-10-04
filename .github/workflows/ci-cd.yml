@@ -1,0 +1,85 @@
+# .github/workflows/ci-cd.yml
+
+name: CI/CD - Build and Deploy to Swarm
+
+# Se activa con cada push a la rama 'main'
+on:
+  push:
+    branches:
+      - main
+
+# Define variables de entorno para todo el workflow
+env:
+  # Reemplaza con tu usuario/organización de GitHub y el nombre del repo
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  # ===============================================================
+  # JOB 1: Construye y publica las imágenes de los servicios
+  # ===============================================================
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Permiso para escribir en GitHub Packages (ghcr.io)
+
+    strategy:
+      # Ejecuta un trabajo para cada servicio en paralelo
+      matrix:
+        service: [nevera, kiosko]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/vorak-edge/${{ matrix.service }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./MODULO-${{ upper(matrix.service) }}
+          file: ./MODULO-${{ upper(matrix.service) }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===============================================================
+  # JOB 2: Despliega la aplicación en el clúster de Swarm
+  # ===============================================================
+  deploy:
+    name: Deploy to Swarm
+    runs-on: ubuntu-latest
+    needs: build-and-push # Se ejecuta solo si el job anterior fue exitoso
+
+    steps:
+      - name: Trigger Portainer Webhook for App Stack
+        uses: distributhor/workflow-webhook@v3
+        with:
+          webhook_url: ${{ secrets.PORTAINER_WEBHOOK_APP }}
+          webhook_secret: "optional-secret-if-configured" # Opcional, si configuras un secreto en el webhook
+          verbose: true
+
+      - name: Trigger Portainer Webhook for Monitoring Stack
+        uses: distributhor/workflow-webhook@v3
+        with:
+          webhook_url: ${{ secrets.PORTAINER_WEBHOOK_MONITORING }}
+          webhook_secret: "optional-secret-if-configured" # Opcional
+          verbose: true

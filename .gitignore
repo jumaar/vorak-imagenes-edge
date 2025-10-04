@@ -8,3 +8,4 @@ __pycache__/
 # Ignorar directorios de entornos virtuales.
 venv/
 /opt/venv/
+docker-stack.yml
