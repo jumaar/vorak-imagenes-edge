@@ -20,7 +20,11 @@ services:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
     secrets:
+<<<<<<< HEAD
       # Carga la clave de la API de Prometheus de Grafana Cloud de forma segura
+=======
+      # Carga la clave de la API de Grafana Cloud de forma segura
+>>>>>>> 427a20a (compose funcionando)
       - grafana_cloud_prometheus_api_key
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -53,7 +57,10 @@ services:
       - source: promtail_config
         target: /etc/promtail/config.yml
     secrets:
+<<<<<<< HEAD
       # Carga la clave de la API de Loki de Grafana Cloud de forma segura
+=======
+>>>>>>> 427a20a (compose funcionando)
       - grafana_cloud_loki_api_key
     command: -config.file=/etc/promtail/config.yml
     networks:
@@ -125,10 +132,15 @@ configs:
     file: ./promtail-config.yml
 
 secrets:
+<<<<<<< HEAD
   # Secreto para la API de Prometheus. Debe ser creado manualmente en el nodo Swarm.
   grafana_cloud_prometheus_api_key:
     external: true
   # Secreto para la API de Loki. Debe ser creado manualmente en el nodo Swarm.
+=======
+  grafana_cloud_prometheus_api_key:
+    external: true
+>>>>>>> 427a20a (compose funcionando)
   grafana_cloud_loki_api_key:
     external: true
 

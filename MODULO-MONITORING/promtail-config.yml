@@ -9,8 +9,12 @@ clients:
   - url: "${GRAFANA_CLOUD_LOKI_URL}"
     basic_auth:
       username: "${GRAFANA_CLOUD_LOKI_USER}"
+<<<<<<< HEAD
       # Lee la clave directamente del secreto de Docker. Asumimos que es la misma clave para Loki y Prometheus.
       password_file: /run/secrets/grafana_cloud_loki_api_key
+=======
+      password_file: "/run/secrets/grafana_cloud_loki_api_key"
+>>>>>>> 427a20a (compose funcionando)
 
 scrape_configs:
   - job_name: container_logs

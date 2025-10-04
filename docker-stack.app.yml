@@ -39,10 +39,25 @@ services:
       - nevera_offline_queue:/app/offline_queue
       - nevera_review_queue:/app/review_queue
       - fridge_status:/app/status
+<<<<<<< HEAD
     devices:
       - "/dev/video0:/dev/video0"
       - "/dev/video2:/dev/video2"
       - "/dev/ttyUSB0:/dev/ttyUSB0"
+=======
+      # --- WORKAROUND PARA SWARM: Mapear dispositivos como volúmenes ---
+      # Swarm ignora la clave 'devices', por lo que los montamos como si fueran archivos.
+      # Esto, combinado con 'privileged: true', da acceso al hardware.
+      - type: bind
+        source: /dev/video0
+        target: /dev/video0
+      - type: bind
+        source: /dev/video2
+        target: /dev/video2
+      - type: bind
+        source: /dev/ttyUSB0
+        target: /dev/ttyUSB0
+>>>>>>> 427a20a (compose funcionando)
     networks:
       - vorak-net
     secrets:
@@ -51,6 +66,12 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
+<<<<<<< HEAD
+=======
+      placement:
+        constraints:
+          - node.labels.has_hardware == true
+>>>>>>> 427a20a (compose funcionando)
     # --- ¡CORRECCIÓN DE PERMISOS AVANZADA! ---
     # Le damos al contenedor privilegios elevados para asegurar el acceso al hardware.
     # Esto es a menudo necesario para dispositivos como cámaras o puertos serie en Swarm.

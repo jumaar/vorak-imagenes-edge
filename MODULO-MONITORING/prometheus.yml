@@ -8,8 +8,13 @@ remote_write:
   - url: "${GRAFANA_CLOUD_PROMETHEUS_URL}"
     basic_auth:
       username: "${GRAFANA_CLOUD_PROMETHEUS_USER}"
+<<<<<<< HEAD
       # Lee la clave directamente del secreto de Docker, que se monta en esta ruta.
       password_file: /run/secrets/grafana_cloud_prometheus_api_key
+=======
+      password_file: "/run/secrets/grafana_cloud_prometheus_api_key"
+
+>>>>>>> 427a20a (compose funcionando)
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
