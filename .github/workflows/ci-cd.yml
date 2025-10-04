@@ -53,8 +53,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./MODULO-${{ upper(matrix.service) }}
-          file: ./MODULO-${{ upper(matrix.service) }}/Dockerfile
+          context: ./MODULO-${{ toUpper(matrix.service) }}
+          file: ./MODULO-${{ toUpper(matrix.service) }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
