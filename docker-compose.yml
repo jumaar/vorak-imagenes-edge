@@ -84,6 +84,7 @@ services:
     restart: unless-stopped
     command: >
       /bin/sh -c "
+        chmod +x /backup/backup.sh && \
         echo 'Contenedor de backup iniciado. El primer backup se ejecutará en 1 minuto...';
         sleep 60;
         while true; do
@@ -122,7 +123,7 @@ services:
       - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
       - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
     volumes:
-      - ./MODULO-MONITORING/prometheus.dev.yml:/etc/prometheus/prometheus.yml
+      - ./MODULO-MONITORING/prometheus.yml:/etc/prometheus/prometheus.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
     secrets:
       # --- ¡CORRECCIÓN! ---
@@ -152,7 +153,7 @@ services:
       - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
       - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
     volumes:
-      - ./MODULO-MONITORING/promtail.dev.yml:/etc/promtail/config.yml
+      - ./MODULO-MONITORING/promtail-config.yml:/etc/promtail/config.yml
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -175,9 +176,13 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      - /dev:/dev:ro
     restart: unless-stopped
     networks:
       - vorak-net
+    privileged: true
+    command:
+      - --docker_only
 
   node-exporter:
     image: prom/node-exporter:v1.6.1

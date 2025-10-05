@@ -11,10 +11,6 @@ services:
     volumes:
       # Necesita acceso al socket de Docker para descubrir otros servicios
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    environment:
-      # Pasa las credenciales de Grafana Cloud desde un archivo .env
-      - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
-      - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
     configs:
       # Carga la configuración de prometheus.yml que creamos antes
       - source: prometheus_config
@@ -45,10 +41,6 @@ services:
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      # Pasa las credenciales de Grafana Loki desde el archivo .env
-      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
-      - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
     configs:
       - source: promtail_config
         target: /etc/promtail/config.yml
@@ -70,8 +62,12 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      - /dev:/dev:ro
     networks:
       - vorak-net
+    privileged: true
+    command:
+      - --docker_only
     deploy:
       # Se despliega en TODOS los nodos del clúster para monitorearlos todos
       mode: global
@@ -100,9 +96,9 @@ services:
 # Definición de los recursos externos que usará este stack
 configs:
   prometheus_config:
-    file: ./prometheus.yml
+    file: ./prometheus-stack.yml
   promtail_config:
-    file: ./promtail-config.yml
+    file: ./promtail-config-stack.yml
 
 secrets:
   grafana_cloud_prometheus_api_key:

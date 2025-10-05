@@ -60,6 +60,7 @@ services:
     image: alpine:latest # Esta imagen pública es correcta
     command: >
       /bin/sh -c "
+        chmod +x /backup/backup.sh && \
         echo 'Contenedor de backup iniciado. El primer backup se ejecutará en 1 minuto...';
         sleep 60;
         while true; do
