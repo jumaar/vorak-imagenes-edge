@@ -9,7 +9,7 @@ clients:
   - url: "${GRAFANA_CLOUD_LOKI_URL}" # Se lee desde el entorno
     basic_auth:
       username: "${GRAFANA_CLOUD_LOKI_USER}" # Se lee desde el entorno
-      password_file: "/run/secrets/grafana_cloud_loki_api_key" # Se lee desde un secreto de Docker
+      password: "${GRAFANA_CLOUD_LOKI_API_KEY}" # Se lee desde el entorno
 
 scrape_configs:
   - job_name: container_logs

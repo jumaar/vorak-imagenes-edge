@@ -16,20 +16,18 @@ services:
   # SERVICIO 'NEVERA' - El cerebro del sistema
   #--------------------------------------------------------------------------
   nevera:
-    # --- ¡CORRECCIÓN! ---
-    # Añadimos la clave 'build' para decirle a Compose cómo construir la imagen.
+    
     build:
       context: .
       dockerfile: ./MODULO-NEVERA/Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:latest # <-- Usaremos esta imagen local
+    image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:latest 
     container_name: vorak-nevera
     restart: unless-stopped
     environment:
-      # --- Variables de entorno para app.py ---
-      # Leídas desde el archivo .env en la raíz del proyecto
+      
       - FRIDGE_ID=${FRIDGE_ID}
       - BASE_BACKEND_URL=${BASE_BACKEND_URL}
-      - FRIDGE_SECRET=${FRIDGE_SECRET} # Para pruebas locales, lo pasamos como variable
+      - FRIDGE_SECRET=${FRIDGE_SECRET} 
       - CAMERA_DEVICES=/dev/video0,/dev/video2 # IMPORTANTE: Ajusta esto a tus cámaras
       - BAUD_RATE=115200
     volumes:
@@ -60,13 +58,11 @@ services:
   # SERVICIO 'KIOSKO' - La interfaz de usuario web
   #--------------------------------------------------------------------------
   kiosko:
-    # --- ¡CORRECCIÓN! ---
-    # Cambiamos el contexto a la raíz del proyecto (.) para que el Dockerfile
-    # pueda copiar archivos como 'manage-secrets.sh' desde fuera de su carpeta.
+    
     build:
       context: .
       dockerfile: ./MODULO-KIOSKO/Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:latest # <-- Usaremos esta imagen local
+    image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:latest 
     container_name: vorak-kiosko
     restart: unless-stopped
     ports:
@@ -81,7 +77,6 @@ services:
     volumes:
       # --- ¡NUEVO! Permisos para controlar Docker ---
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/app/project_root # Monta el proyecto para que el script encuentre los .yml
       # Volumen para la caché de medios y la playlist
       - kiosk_data:/app/data
       # Volumen compartido para leer el estado de la nevera
@@ -137,7 +132,7 @@ services:
       # Pasamos las variables del .env para que se sustituyan en prometheus.yml
       - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
       - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
-      - GRAFANA_CLOUD_PROMETHEUS_API_KEY_FILE=${GRAFANA_CLOUD_PROMETHEUS_API_KEY}
+      - GRAFANA_CLOUD_PROMETHEUS_API_KEY=${GRAFANA_CLOUD_PROMETHEUS_API_KEY}
     volumes:
       - ./MODULO-MONITORING/prometheus.yml:/etc/prometheus/prometheus.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -162,7 +157,7 @@ services:
       # Pasamos las variables del .env para que se sustituyan en promtail.dev.yml
       - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
       - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
-      - GRAFANA_CLOUD_LOKI_API_KEY_FILE=${GRAFANA_CLOUD_LOKI_API_KEY}
+      - GRAFANA_CLOUD_LOKI_API_KEY=${GRAFANA_CLOUD_LOKI_API_KEY}
     volumes:
       - ./MODULO-MONITORING/promtail-config.yml:/etc/promtail/config.yml
       - /var/log:/var/log:ro
@@ -209,18 +204,4 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
-
-
-
-#--------------------------------------------------------------------------
-# RED Y VOLÚMENES
-#--------------------------------------------------------------------------
-secrets:
-  # --- ¡CORRECCIÓN! ---
-  # Definimos los secretos para que Docker Compose los lea desde el archivo .env
-  # Esto emula el comportamiento de 'docker secret create' para desarrollo.
-  grafana_cloud_prometheus_api_key:
-    environment: GRAFANA_CLOUD_PROMETHEUS_API_KEY
-  grafana_cloud_loki_api_key:
-    environment: GRAFANA_CLOUD_LOKI_API_KEY
 

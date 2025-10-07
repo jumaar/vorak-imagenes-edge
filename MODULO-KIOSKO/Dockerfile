@@ -14,9 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
  
 # --- ¡NUEVO! Copiar el script de redespliegue y darle permisos de ejecución ---
 # Copiar el código de la aplicación y los directorios de plantillas/estáticos
-COPY MODULO-KIOSKO/kiosk.py .
-COPY MODULO-KIOSKO/templates/ templates/
-COPY MODULO-KIOSKO/static/ static/
+# Copiar todo el código de la aplicación del módulo kiosko al directorio de trabajo
+COPY MODULO-KIOSKO/ .
 
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091
