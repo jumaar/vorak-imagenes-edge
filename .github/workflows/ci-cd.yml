@@ -55,26 +55,32 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=,suffix=,format=short
 
-      - name: Set Dockerfile path based on service
+      - name: Set build paths based on service
         id: paths
         run: |
-          # --- ¡MEJORA! --- Usamos una lógica if/elif para manejar las rutas específicas de cada Dockerfile.
+          # --- ¡CORRECCIÓN! ---
+          # Definimos tanto el CONTEXTO de construcción como la RUTA al Dockerfile para cada servicio.
+          # Esto asegura que el pipeline replique la misma lógica que docker-compose.yml.
           SERVICE_NAME=${{ matrix.service }}
           if [ "$SERVICE_NAME" = "nevera" ]; then
+            echo "build_context=./MODULO-NEVERA" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-NEVERA/Dockerfile" >> $GITHUB_OUTPUT
           elif [ "$SERVICE_NAME" = "kiosko" ]; then
+            echo "build_context=./MODULO-KIOSKO" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-KIOSKO/Dockerfile" >> $GITHUB_OUTPUT
           elif [ "$SERVICE_NAME" = "prometheus" ]; then
+            echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-MONITORING/prometheus.Dockerfile" >> $GITHUB_OUTPUT
           elif [ "$SERVICE_NAME" = "promtail" ]; then
+            echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-MONITORING/promtail.Dockerfile" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ${{ steps.paths.outputs.dockerfile_path }} # Usamos la ruta del paso anterior.
+          context: ${{ steps.paths.outputs.build_context }}
+          file: ${{ steps.paths.outputs.dockerfile_path }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
