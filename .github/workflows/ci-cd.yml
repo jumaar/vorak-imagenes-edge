@@ -1,6 +1,6 @@
 # .github/workflows/ci-cd.yml
 
-name: CI/CD - Build and Deploy to Swarm
+name: CI/CD - Build and Deploy with Docker Compose
 
 # Se activa con cada push a la rama 'main'
 on:
@@ -71,10 +71,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
   # ===============================================================
-  # JOB 2: Despliega la aplicación en el clúster de Swarm
+  # JOB 2: Despliega la aplicación usando el webhook
   # ===============================================================
   deploy:
-    name: Deploy to Swarm
+    name: Deploy via Webhook
     runs-on: ubuntu-latest
     needs: build-and-push # Se ejecuta solo si el job anterior fue exitoso
 

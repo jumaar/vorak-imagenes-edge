@@ -1,4 +1,4 @@
-# Guía de Arquitectura y Operación: Módulo Kiosko v0.3 (Refactorizado para Swarm)
+# Guía de Arquitectura y Operación: Módulo Kiosko v0.3 (Refactorizado para Docker Compose)
 
 ## Filosofía
 
@@ -33,7 +33,7 @@ NOTA: en este apartado se colocan ideas y posibles mejoras a futuro , cuando se 
 
 ## Arquitectura Docker
 
-El sistema se orquesta a través de `docker-stack.yml`, que define y conecta los dos servicios principales.
+El sistema se orquesta a través de `docker-compose.yml`, que define y conecta los dos servicios principales.
 
 ### 1. Servicio `nevera`
 
@@ -51,9 +51,9 @@ El sistema se orquesta a través de `docker-stack.yml`, que define y conecta los
     - **`kiosk.py`:** Un servidor web Flask que cumple dos funciones críticas:
         1.  **APIs para la UI:** Proporciona endpoints para que el frontend consulte datos dinámicos, como la playlist de medios o el estado actual de la nevera (leyendo `fridge_status.json` del volumen compartido).
         2.  **Webhook de Despliegue (`/update/<secret>`):** Expone un endpoint seguro que, al ser llamado por el pipeline de CI/CD (GitHub Actions), inicia el proceso de actualización. Verifica un secreto compartido para prevenir ejecuciones no autorizadas.
-    - **`redeploy.sh` (Internalizado en la imagen):** Este script contiene la lógica para redesplegar el stack. Es ejecutado por `kiosk.py` al recibir un webhook válido. Sus tareas son:
+    - **`redeploy.sh` (Internalizado en la imagen):** Este script contiene la lógica para redesplegar los servicios. Es ejecutado por `kiosk.py` al recibir un webhook válido. Sus tareas son:
         1.  Autenticarse en el registro de contenedores (`ghcr.io`) usando credenciales seguras.
-        2.  Ejecutar `docker stack deploy` para indicarle a Swarm que descargue las nuevas versiones de las imágenes y actualice los servicios correspondientes.
+        2.  Ejecutar `docker-compose up -d --pull` para descargar las nuevas versiones de las imágenes y actualizar los servicios correspondientes.
     - **`manage-secrets.sh`:** Un script de utilidad, también dentro de la imagen, que podría usarse para gestionar la creación o actualización de secretos de Docker si fuera necesario.
 
 ### 3. Conexión con el Entorno Gráfico del Host
@@ -78,7 +78,7 @@ Se utilizan volúmenes nombrados de Docker para asegurar que los datos no se pie
 
 ## Uso y Mantenimiento
 
-Toda la gestión del ciclo de vida de la aplicación se realiza a través de comandos de Docker swarm.
+Toda la gestión del ciclo de vida de la aplicación se realiza a través de comandos de Docker Compose.
 
 ### Prerrequisitos
 
@@ -135,99 +135,3 @@ sudo docker exec -it vorak-nevera /bin/bash
 
 ---
 
-## Despliegue en Docker Swarm (Modo Producción)
-
-Esta guía describe el proceso completo para desplegar la aplicación en un entorno de producción utilizando Docker Swarm en un único nodo.
-
-### Paso 1: Inicializar el Clúster de Swarm
-
-Para que los servicios se comuniquen correctamente, es crucial inicializar el clúster de Swarm indicando la dirección IP privada del dispositivo.
-
-1.  **Obtén la dirección IP privada** del dispositivo. Puedes usar uno de los siguientes comandos:
-    ```bash
-    # Opción A: Muestra todas las interfaces de red
-    ip a
-
-    # Opción B: Intenta mostrar directamente la IP (más directo)
-    hostname -I | awk '{print $1}'
-    ```
-    Busca una IP en el rango de `192.168.x.x`, `10.x.x.x`, o `172.16.x.x`.
-
-2.  **Inicializa Swarm** usando esa dirección IP. Esto asegura que el nodo se anuncie a sí mismo correctamente dentro de la red del clúster.
-    ```bash
-    # Reemplaza <IP_PRIVADA> con la IP que obtuviste
-    sudo docker swarm init --advertise-addr <IP_PRIVADA>
-    ```
-    Si ya habías inicializado Swarm antes, puede que necesites ejecutar `sudo docker swarm leave --force` primero.
-
-### Paso 2: Crear la Red Overlay Compartida
-
-Todos los servicios (aplicación, monitoreo, etc.) se comunican a través de una red "overlay" de Docker. Debemos crearla antes de desplegar los stacks.
-
-```bash
-sudo docker network create --driver=overlay --attachable vorak-net
-```
-*   `--driver=overlay`: Crea una red que puede extenderse a través de múltiples nodos (aunque aquí solo usemos uno).
-*   `--attachable`: Permite que tanto los servicios del stack como contenedores individuales puedan conectarse a ella, útil para depuración.
-
-### Paso 3: Crear los Secretos
-
-Los secretos guardan información sensible como claves de API y contraseñas de forma segura.
-
-```bash
-# Secreto para la autenticación de la nevera con el backend
-printf "TU_CLAVE_SECRETA_AQUI" | sudo docker secret create fridge_secret -
-
-# Secretos para enviar métricas y logs a Grafana Cloud
-printf "TU_API_KEY_DE_PROMETHEUS" | sudo docker secret create grafana_cloud_prometheus_api_key -
-printf "TU_API_KEY_DE_LOKI" | sudo docker secret create grafana_cloud_loki_api_key -
-```
-Después de ejecutar cada comando, pega la clave correspondiente y presiona `Enter`.
-
-### Paso 4: Desplegar los Stacks de Servicios
-
-Con todo preparado, despliega las pilas de servicios usando los archivos `docker-stack.yml`. Es recomendable empezar por la aplicación principal.
-
-1.  **Desplegar el Stack de la Aplicación (Nevera y Kiosko):**
-    ```bash
-    # Navega al directorio del MODULO-NEVERA o donde esté tu stack principal
-    sudo docker stack deploy --with-registry-auth -c docker-stack.yml vorak-app
-    ```
-
-2.  **Desplegar el Stack de Monitoreo (Prometheus, cAdvisor, etc.):**
-    ```bash
-    # Navega al directorio del MODULO-MONITORING
-    sudo docker stack deploy --with-registry-auth -c docker-stack.monitoring.yml vorak-monitoring
-    ```
-
-### Paso 5: Verificar el Despliegue
-
-Para asegurarte de que todos los servicios se han levantado correctamente, puedes usar los siguientes comandos:
-
-```bash
-# Muestra los stacks activos
-sudo docker stack ls
-
-# Muestra los servicios del stack de la aplicación y su estado (debería mostrar 1/1 replicas)
-sudo docker stack services vorak-app
-
-# Muestra los servicios del stack de monitoreo
-sudo docker stack services vorak-monitoring
-
-# Muestra todos los contenedores en ejecución en el nodo
-sudo docker ps
-```
-
-### Paso 6: Detener los Stacks
-
-Si necesitas detener la aplicación, puedes eliminar los stacks. Esto detendrá y eliminará los contenedores, pero **no borrará los volúmenes de datos** como la base de datos de productos o las colas offline.
-
-```bash
-# Detener el stack de la aplicación
-sudo docker stack rm vorak-app
-
-# Detener el stack de monitoreo
-sudo docker stack rm vorak-monitoring
-```
-
-```

@@ -4,7 +4,7 @@
 
 Antes de desplegar, asegúrate de cumplir con lo siguiente en el dispositivo final:
 
-1.  **Docker y Docker Swarm**: El entorno debe tener Docker instalado y haber sido inicializado como un nodo de Swarm (`docker swarm init`).
+1.  **Docker**: El entorno debe tener Docker instalado.
 2.  **Autenticación en GHCR**: Las imágenes de Docker son privadas y se alojan en GitHub Container Registry. Es **obligatorio** autenticarse antes de intentar desplegar el stack.
     *   Crea un **Personal Access Token (PAT)** en tu cuenta de GitHub con el único permiso (`scope`) de **`read:packages`**.
     *   En la terminal del dispositivo, ejecuta `docker login ghcr.io` e introduce tu usuario de GitHub y el PAT como contraseña.
@@ -142,7 +142,7 @@ La configuración ya no se realiza modificando el código, sino a través de **v
 
 -   `FRIDGE_ID`: ID único de la nevera.
 -   `BASE_BACKEND_URL`: URL base del servidor backend.
--   `FRIDGE_SECRET`: Clave secreta para la autenticación. Se puede proporcionar como secreto de Docker Swarm.
+-   `FRIDGE_SECRET`: Clave secreta para la autenticación. Se puede proporcionar como secreto de Docker.
 -   `CAMERA_DEVICES`: Rutas de las cámaras dentro del contenedor, separadas por comas (ej. `/dev/video0,/dev/video2`).
 -   `BAUD_RATE`: Velocidad de comunicación con el ESP32 (por defecto `115200`).
 
