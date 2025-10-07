@@ -12,10 +12,13 @@ WORKDIR /app
 COPY MODULO-KIOSKO/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
  
-# --- ¡NUEVO! Copiar el script de redespliegue y darle permisos de ejecución ---
-# Copiar el código de la aplicación y los directorios de plantillas/estáticos
-# Copiar todo el código de la aplicación del módulo kiosko al directorio de trabajo
+# Copiar el código de la aplicación del módulo kiosko
 COPY MODULO-KIOSKO/ .
+
+# --- ¡SOLUCIÓN! Copiar los scripts de despliegue desde la raíz del proyecto ---
+# Los copiamos al directorio de trabajo /app y les damos permisos de ejecución.
+COPY gitpull.sh deploy.sh ./
+RUN chmod +x gitpull.sh deploy.sh
 
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091

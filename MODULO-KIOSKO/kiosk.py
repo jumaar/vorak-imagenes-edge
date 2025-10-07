@@ -104,6 +104,10 @@ def sync_with_admin_backend(stop_event, auth_manager):
     Hilo que se ejecuta periódicamente para descargar la playlist y los medios
     desde el backend de administración.
     """
+    # --- ¡SOLUCIÓN! ---
+    # Hacemos una primera sincronización inmediata al arrancar el hilo,
+    # sin esperar el intervalo completo.
+    is_first_run = True
     while not stop_event.is_set():
         # --- VERIFICACIÓN DE URL BASE ---
         if not BASE_BACKEND_URL:
@@ -125,7 +129,7 @@ def sync_with_admin_backend(stop_event, auth_manager):
             response = requests.get(KIOSK_BACKEND_URL, headers=headers, timeout=15)
             response.raise_for_status()
             playlist_data = response.json()
-            logging.info("Playlist recibida del backend con éxito.")
+            logging.info(f"✅ Playlist recibida del backend con {len(playlist_data.get('media', []))} elemento(s).")
 
             # 2. Procesar y descargar los medios
             for item in playlist_data.get("media", []):
@@ -140,18 +144,20 @@ def sync_with_admin_backend(stop_event, auth_manager):
 
                 # Descargar el archivo solo si no existe localmente
                 if not os.path.exists(local_filepath):
-                    logging.info(f"Descargando nuevo medio: {media_url}")
+                    logging.info(f"  -> 📥 [Cache] Descargando nuevo medio: {media_url}")
                     media_response = requests.get(media_url, stream=True, timeout=30)
                     media_response.raise_for_status()
                     with open(local_filepath, 'wb') as f:
                         for chunk in media_response.iter_content(chunk_size=8192):
                             f.write(chunk)
-                    logging.info(f"Medio guardado en: {local_filepath}")
+                    logging.info(f"     ✅ [Cache] Medio guardado en: {local_filepath}")
+                else:
+                    logging.info(f"  -> 👍 [Cache] El medio '{local_filename}' ya existe. Se omite la descarga.")
 
             # 3. Guardar la playlist procesada localmente
             with open(PLAYLIST_FILE, 'w', encoding='utf-8') as f:
                 json.dump(playlist_data, f, indent=2)
-            logging.info(f"Playlist local actualizada en {PLAYLIST_FILE}")
+            logging.info(f"✅ Playlist local actualizada y guardada en {PLAYLIST_FILE}")
 
         except requests.exceptions.RequestException as e:
             logging.error(f"No se pudo conectar con el backend de administración: {e}")
@@ -159,8 +165,13 @@ def sync_with_admin_backend(stop_event, auth_manager):
         except (json.JSONDecodeError, KeyError) as e:
             logging.error(f"Error al procesar la playlist recibida del backend: {e}")
 
-        # Esperar para la próxima sincronización
-        stop_event.wait(SYNC_INTERVAL_SECONDS)
+        # --- ¡SOLUCIÓN! ---
+        # Esperamos el intervalo DESPUÉS de la ejecución.
+        # En la primera vuelta, esperamos solo 1 segundo para que la app arranque completamente.
+        wait_time = 1 if is_first_run else SYNC_INTERVAL_SECONDS
+        is_first_run = False
+        if stop_event.wait(wait_time):
+            break # Salir del bucle si el evento de parada se activa.
 
 # ==============================================================================
 # --- HILO 1: SERVIDOR WEB FLASK (EL "PROYECTOR") ---
@@ -232,7 +243,7 @@ def _run_deployment_script():
     try:
         # Usamos subprocess.run para esperar a que el script termine y capturar su salida.
         result = subprocess.run(
-            ["/project/gitpull.sh"],
+            ["/app/gitpull.sh"], # <-- ¡SOLUCIÓN! Ruta corregida al script dentro del contenedor.
             capture_output=True,
             text=True,
             check=False  # No lanzar excepción si falla, lo manejaremos manualmente.
