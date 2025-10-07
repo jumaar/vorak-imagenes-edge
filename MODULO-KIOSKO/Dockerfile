@@ -2,8 +2,9 @@
 FROM python:3.11-alpine
 
 # --- ¡NUEVO! Instalar el cliente de Docker ---
-# Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker' y 'git'.
-RUN apk add --no-cache docker-cli git
+# Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker', 'git' y 'docker compose'.
+# --- ¡SOLUCIÓN! Añadimos 'docker-compose' para instalar el plugin 'compose' v2. ---
+RUN apk add --no-cache git docker-cli docker-compose
 
 # --- ¡SOLUCIÓN! Marcar el directorio del proyecto como seguro para Git ---
 # Esto evita el error "dubious ownership" cuando el contenedor (como root) opera en un volumen montado desde el host (propiedad de otro usuario).

@@ -35,9 +35,24 @@ fi
 echo "Descargando las últimas versiones de las imágenes con 'docker compose pull'..."
 docker compose --env-file ./.env pull
 
-# 5. Redesplegar los servicios usando las imágenes ya descargadas.
-echo "Redesplegando todos los servicios con 'docker compose up'..."
-docker compose --env-file ./.env up -d --build --remove-orphans
+# --- ¡SOLUCIÓN DEFINITIVA! ---
+# 5. Usar un contenedor "desechable" para ejecutar el redespliegue.
+# Esto evita la paradoja de que el kiosko intente reiniciarse a sí mismo.
+echo "Lanzando un contenedor temporal para gestionar el redespliegue de toda la pila..."
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$(pwd)":"$(pwd)" \
+  -w "$(pwd)" \
+  # --- MEJORA ---
+  # Fijamos una versión específica para evitar cambios inesperados con 'latest'.
+  docker/compose:v2.24.6 \
+  --env-file ./.env up -d --build --remove-orphans
+
+# El script original se detendrá aquí cuando el contenedor kiosko sea reemplazado.
+# Los logs posteriores a este punto no se verán en la llamada del webhook,
+# lo cual es un comportamiento esperado y correcto.
+
+echo "El contenedor de despliegue ha sido lanzado. El kiosko será reiniciado como parte del proceso."
 
 echo "----------------------------------------------------"
 echo "✅ Proceso de despliegue completado."
