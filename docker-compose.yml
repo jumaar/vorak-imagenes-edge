@@ -1,7 +1,10 @@
 networks:
   vorak-net:
     driver: bridge
-
+    dns:
+      - 8.8.8.8  
+      - 1.1.1.1  
+      
 volumes:
   nevera_db:
   nevera_offline_queue:
@@ -125,6 +128,7 @@ services:
     build:
       context: ./MODULO-MONITORING
       dockerfile: prometheus.Dockerfile
+    image: ghcr.io/jumaar/vorak-imagenes-edge/prometheus:latest
     container_name: vorak-prometheus
     ports:
       # Mapea el puerto 9090 del host al puerto 9090 del contenedor
@@ -153,6 +157,7 @@ services:
     build:
       context: ./MODULO-MONITORING
       dockerfile: promtail.Dockerfile
+    image: ghcr.io/jumaar/vorak-imagenes-edge/promtail:latest
     container_name: vorak-promtail
     environment:
       # --- ¡CORRECCIÓN! ---

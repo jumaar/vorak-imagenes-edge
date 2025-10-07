@@ -17,18 +17,10 @@ from flask import Flask, render_template, jsonify, send_from_directory, abort, r
 FRIDGE_ID = os.getenv("FRIDGE_ID", "NEVERA-001-SANTAROSA")
 BASE_BACKEND_URL = os.getenv("BASE_BACKEND_URL")
 
-# --- LECTURA DE SECRETOS EN SWARM ---
-# En un entorno Swarm, el secreto se monta como un archivo.
-# Esta función intenta leerlo desde el archivo, y si no existe,
-# vuelve a usar la variable de entorno (para compatibilidad con docker-compose).
-def get_fridge_secret():
-    secret_path = '/run/secrets/fridge_secret'
-    if os.path.exists(secret_path):
-        with open(secret_path, 'r') as f:
-            return f.read().strip()
-    return os.getenv("FRIDGE_SECRET")
-
-FRIDGE_SECRET = get_fridge_secret()
+# --- ¡MEJORA! ---
+# Ya no se usa Docker Swarm, por lo que la lógica para leer secretos de archivos se elimina.
+# La variable FRIDGE_SECRET es inyectada directamente desde el archivo .env por Docker Compose.
+FRIDGE_SECRET = os.getenv("FRIDGE_SECRET")
 
 # Construir la URL final usando la plantilla y el ID de la nevera
 KIOSK_BACKEND_URL = f"{BASE_BACKEND_URL}/api/playlist/{FRIDGE_ID}"
@@ -279,20 +271,12 @@ def handle_webhook(token):
         logging.warning(f"Intento de acceso no autorizado al webhook con token: {token}")
         abort(401) # Unauthorized
 
-    # 2. Validar que la petición venga de GitHub (seguridad extra).
-    #    Se comenta temporalmente para permitir pruebas manuales a través de túneles.
-    # user_agent = request.headers.get('User-Agent', '')
-    # if not user_agent.startswith('GitHub-Hookshot/'):
-    #     logging.warning(f"Petición de webhook rechazada de User-Agent no válido: {user_agent}")
-    #     abort(403) # Forbidden
-
-    # 3. Ejecutar el script de redespliegue en segundo plano
     logging.info("Webhook autorizado recibido. Ejecutando script de redespliegue...")
     try:
         # Creamos y lanzamos el hilo que hará el trabajo pesado.
         deployment_thread = threading.Thread(target=_run_deployment_script, daemon=True)
         deployment_thread.start()
-        return "Proceso de redespliegue iniciado.", 202 # Accepted
+        return "Proceso de redespliegue iniciado.", 202 
     except Exception as e:
         logging.error(f"Error al ejecutar el script de redespliegue: {e}")
         return "Fallo al iniciar el proceso de redespliegue.", 500
