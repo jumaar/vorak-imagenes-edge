@@ -21,10 +21,11 @@ COPY MODULO-NEVERA/app.py .
 COPY MODULO-NEVERA/products.json .
 COPY MODULO-NEVERA/test_cameras.py .
 
-# Copiar el script de entrypoint y darle permisos de ejecución
-COPY MODULO-NEVERA/entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
-ENTRYPOINT ["entrypoint.sh"]
+# Crear un usuario no-root y asegurar permisos en los directorios de volúmenes
+RUN adduser --system --no-create-home appuser && \
+    mkdir -p /app/logs /app/db /app/status && \
+    chown -R appuser:nogroup /app/logs /app/db /app/status
+USER appuser
 
 # Comando para ejecutar la aplicación cuando el contenedor inicie
 CMD ["python", "app.py"]

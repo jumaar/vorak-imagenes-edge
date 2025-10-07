@@ -110,7 +110,7 @@ def sync_with_admin_backend(stop_event, auth_manager):
             logging.warning("La variable BASE_BACKEND_URL no está definida. El kiosko no puede sincronizar la playlist. Verifique el archivo .env.")
             stop_event.wait(SYNC_INTERVAL_SECONDS) # Esperar el intervalo completo antes de volver a verificar.
             continue
-        logging.info("Iniciando sincronización de playlist con el backend...")
+        logging.info(f"Iniciando sincronización de playlist. Conectando a: {KIOSK_BACKEND_URL}")
         os.makedirs(CACHE_DIR, exist_ok=True)
 
         try:
@@ -232,7 +232,7 @@ def _run_deployment_script():
     try:
         # Usamos subprocess.run para esperar a que el script termine y capturar su salida.
         result = subprocess.run(
-            ["/app/redeploy.sh"],
+            ["/project/gitpull.sh"],
             capture_output=True,
             text=True,
             check=False  # No lanzar excepción si falla, lo manejaremos manualmente.
@@ -265,11 +265,12 @@ def handle_webhook(token):
         logging.warning(f"Intento de acceso no autorizado al webhook con token: {token}")
         abort(401) # Unauthorized
 
-    # 2. Validar que la petición venga de GitHub (seguridad extra)
-    user_agent = request.headers.get('User-Agent', '')
-    if not user_agent.startswith('GitHub-Hookshot/'):
-        logging.warning(f"Petición de webhook rechazada de User-Agent no válido: {user_agent}")
-        abort(403) # Forbidden
+    # 2. Validar que la petición venga de GitHub (seguridad extra).
+    #    Se comenta temporalmente para permitir pruebas manuales a través de túneles.
+    # user_agent = request.headers.get('User-Agent', '')
+    # if not user_agent.startswith('GitHub-Hookshot/'):
+    #     logging.warning(f"Petición de webhook rechazada de User-Agent no válido: {user_agent}")
+    #     abort(403) # Forbidden
 
     # 3. Ejecutar el script de redespliegue en segundo plano
     logging.info("Webhook autorizado recibido. Ejecutando script de redespliegue...")
@@ -288,6 +289,14 @@ def handle_webhook(token):
 # ==============================================================================
 
 if __name__ == '__main__':
+    # --- Integración con el logging de Gunicorn ---
+    # Si la aplicación se está ejecutando bajo Gunicorn, sus loggers se configuran
+    # para usar los handlers de la aplicación Flask. Esto asegura que todos los
+    # logs (incluidos los de los hilos) se muestren en la salida de Docker.
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+
     os.makedirs(DATA_DIR, exist_ok=True)
     
     # Crear una única instancia del gestor de autenticación
@@ -296,13 +305,3 @@ if __name__ == '__main__':
     stop_sync_event = threading.Event()
     sync_thread = threading.Thread(target=sync_with_admin_backend, args=(stop_sync_event, auth_manager), daemon=True)
     sync_thread.start()
-    
-    try:
-        logging.info(f"Iniciando servidor del kiosko en http://localhost:{FLASK_PORT}")
-        # El servidor se inicia con el CMD del Dockerfile, aquí el hilo principal solo espera.
-        stop_sync_event.wait()
-    except KeyboardInterrupt:
-        logging.info("Deteniendo el servidor del kiosko...")
-    finally:
-        stop_sync_event.set()
-        logging.info("Servidor del kiosko detenido.")

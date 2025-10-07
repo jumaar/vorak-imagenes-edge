@@ -56,14 +56,10 @@ services:
       - "5000:5000"
       # Expone el puerto para el webhook, que apunta al mismo servidor interno.
       - "9091:5000"
-    environment:
-      # Leídas desde el archivo .env en la raíz del proyecto
-      - FRIDGE_ID=${FRIDGE_ID}
-      - BASE_BACKEND_URL=${BASE_BACKEND_URL}
-      - FRIDGE_SECRET=${FRIDGE_SECRET}
-      # --- ¡NUEVO! Variables para el webhook y el login a GHCR ---
-      - GHCR_USER=${GHCR_USER}
-      - GHCR_TOKEN=${GHCR_TOKEN}
+    # --- ¡CORRECCIÓN! ---
+    # Usamos 'env_file' para cargar TODAS las variables del .env en el contenedor.
+    # Esto asegura que el script de redespliegue tenga acceso a todo lo que necesita.
+    env_file: ./.env
     volumes:
       # --- ¡NUEVO! Permisos para controlar Docker ---
       - /var/run/docker.sock:/var/run/docker.sock
@@ -177,12 +173,13 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev:/dev:ro
+      - /etc/machine-id:/etc/machine-id:ro
     restart: unless-stopped
     networks:
       - vorak-net
     privileged: true
-    command:
-      - --docker_only
+    command: --docker_only
+
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
@@ -195,7 +192,9 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      # --- ¡MEJORA! ---
+      # Excluimos explícitamente los puntos de montaje de Docker para evitar métricas duplicadas con cAdvisor.
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run/docker/netns|var/lib/docker/containers|var/lib/docker/overlay2)($$|/)'
     restart: unless-stopped
     networks:
       - vorak-net

@@ -67,7 +67,7 @@ OFFLINE_CHECK_INTERVAL_SECONDS = 60 # Cada cuánto tiempo se revisa la cola offl
 STATUS_REPORT_SEND_INTERVAL_SECONDS = 900 # 15 minutos. Intervalo para enviar reportes de estado al backend.
 
 # --- Configuración de Logging ---
-LOG_FILE_PATH = os.path.join(SCRIPT_DIR, "fridge_service.log")
+LOG_FILE_PATH = os.path.join(SCRIPT_DIR, "logs", "fridge_service.log")
 LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 LOG_BACKUP_COUNT = 2 # Mantiene hasta 2 archivos de log antiguos
 

@@ -13,10 +13,6 @@ COPY MODULO-KIOSKO/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
  
 # --- ¡NUEVO! Copiar el script de redespliegue y darle permisos de ejecución ---
-COPY MODULO-KIOSKO/redeploy.sh .
-COPY manage-secrets.sh .
-RUN chmod +x redeploy.sh manage-secrets.sh
-
 # Copiar el código de la aplicación y los directorios de plantillas/estáticos
 COPY MODULO-KIOSKO/kiosk.py .
 COPY MODULO-KIOSKO/templates/ templates/
