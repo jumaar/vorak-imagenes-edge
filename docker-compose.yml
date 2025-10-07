@@ -1,3 +1,16 @@
+networks:
+  vorak-net:
+    driver: bridge
+
+volumes:
+  nevera_db:
+  nevera_offline_queue:
+  nevera_review_queue:
+  kiosk_data:
+  fridge_status:
+  backup_data:
+  prometheus_data:
+
 services:
   #--------------------------------------------------------------------------
   # SERVICIO 'NEVERA' - El cerebro del sistema
@@ -8,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: ./MODULO-NEVERA/Dockerfile
-    image: vorak-nevera:local # <-- Usaremos esta imagen local
+    image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:latest # <-- Usaremos esta imagen local
     container_name: vorak-nevera
     restart: unless-stopped
     environment:
@@ -38,6 +51,11 @@ services:
     networks:
       - vorak-net
 
+    group_add:
+      - "${VIDEO_GID}"
+      - "${DIALOUT_GID}"
+  
+
   #--------------------------------------------------------------------------
   # SERVICIO 'KIOSKO' - La interfaz de usuario web
   #--------------------------------------------------------------------------
@@ -48,7 +66,7 @@ services:
     build:
       context: .
       dockerfile: ./MODULO-KIOSKO/Dockerfile
-    image: vorak-kiosko:local # <-- Usaremos esta imagen local
+    image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:latest # <-- Usaremos esta imagen local
     container_name: vorak-kiosko
     restart: unless-stopped
     ports:
@@ -70,7 +88,8 @@ services:
       - fridge_status:/app/status
     networks:
       - vorak-net
-
+    group_add:
+      - "${DOCKER_GID}"
   #--------------------------------------------------------------------------
   # SERVICIO 'BACKUP' - Realiza copias de seguridad periódicas
   #--------------------------------------------------------------------------
@@ -118,16 +137,11 @@ services:
       # Pasamos las variables del .env para que se sustituyan en prometheus.yml
       - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
       - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
+      - GRAFANA_CLOUD_PROMETHEUS_API_KEY_FILE=${GRAFANA_CLOUD_PROMETHEUS_API_KEY}
     volumes:
       - ./MODULO-MONITORING/prometheus.yml:/etc/prometheus/prometheus.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    secrets:
-      # --- ¡CORRECCIÓN! ---
-      # Montamos el secreto para que esté disponible en /run/secrets/
-      - grafana_cloud_prometheus_api_key
-    # --- ¡CORRECCIÓN! ---
-    # La lógica del entrypoint ahora está en el Dockerfile.
-    # Solo pasamos los argumentos al comando principal.
+   
     command:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
@@ -148,18 +162,13 @@ services:
       # Pasamos las variables del .env para que se sustituyan en promtail.dev.yml
       - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
       - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
+      - GRAFANA_CLOUD_LOKI_API_KEY_FILE=${GRAFANA_CLOUD_LOKI_API_KEY}
     volumes:
       - ./MODULO-MONITORING/promtail-config.yml:/etc/promtail/config.yml
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    secrets:
-      # --- ¡CORRECCIÓN! ---
-      # Montamos el secreto para que esté disponible en /run/secrets/
-      - grafana_cloud_loki_api_key
-    # --- ¡CORRECCIÓN! ---
-    # La lógica del entrypoint ahora está en el Dockerfile.
-    # El comando ya se define en el script de entrypoint.
+    
     restart: unless-stopped
     networks:
       - vorak-net
@@ -195,6 +204,8 @@ services:
       # --- ¡MEJORA! ---
       # Excluimos explícitamente los puntos de montaje de Docker para evitar métricas duplicadas con cAdvisor.
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run/docker/netns|var/lib/docker/containers|var/lib/docker/overlay2)($$|/)'
+      # --- ¡SOLUCIÓN! Desactivamos el colector NFSd que no es necesario y genera errores. ---
+      - '--no-collector.nfsd'
     restart: unless-stopped
     networks:
       - vorak-net
@@ -213,17 +224,3 @@ secrets:
   grafana_cloud_loki_api_key:
     environment: GRAFANA_CLOUD_LOKI_API_KEY
 
-#--------------------------------------------------------------------------
-# RED Y VOLÚMENES
-#--------------------------------------------------------------------------
-networks:
-  vorak-net:
-    driver: bridge
-
-volumes:
-  nevera_db:
-  nevera_offline_queue:
-  nevera_review_queue:
-  kiosk_data:
-  fridge_status: # Volumen clave para la comunicación entre servicios nevera y kiosko
-  backup_data: # Volumen para almacenar los archivos de backup
