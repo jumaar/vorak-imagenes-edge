@@ -2,8 +2,8 @@
 FROM python:3.11-alpine
 
 # --- ¡NUEVO! Instalar el cliente de Docker ---
-# Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker'.
-RUN apk add --no-cache docker-cli
+# Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker' y 'git'.
+RUN apk add --no-cache docker-cli git
 
 # Establecer el directorio de trabajo dentro del contenedor
 WORKDIR /app

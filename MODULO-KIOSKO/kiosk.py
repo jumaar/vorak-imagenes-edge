@@ -41,7 +41,7 @@ PLAYLIST_FILE = os.path.join(DATA_DIR, "playlist.json")
 STATUS_FILE = "/app/status/fridge_status.json" # Ruta al volumen compartido con la nevera
 
 # Intervalo para sincronizar con el backend (en segundos)
-SYNC_INTERVAL_SECONDS = 1200  # 12 minutos
+SYNC_INTERVAL_SECONDS = 1200  # 15 minutos
 
 # Configuración del servidor Flask
 FLASK_PORT = 5000
@@ -121,8 +121,11 @@ def sync_with_admin_backend(stop_event, auth_manager):
             token = auth_manager.get_token()
             if not token:
                 logging.error("No se pudo obtener el token de autenticación. Se saltará este ciclo de sincronización.")
-                stop_event.wait(60) # Reintentar en 60 segundos si falla la autenticación
-                continue
+                # --- ¡SOLUCIÓN! ---
+                # Esperamos 60s y usamos 'continue' para forzar el reinicio del bucle
+                # y evitar que el código siga ejecutándose sin token.
+                stop_event.wait(60)
+                continue # Volver al inicio del bucle para reintentar.
 
             # 1. Obtener la playlist desde el backend
             headers = {"Authorization": f"Bearer {token}"}
@@ -294,25 +297,19 @@ def handle_webhook(token):
         logging.error(f"Error al ejecutar el script de redespliegue: {e}")
         return "Fallo al iniciar el proceso de redespliegue.", 500
 
-
 # ==============================================================================
-# --- PUNTO DE ENTRADA ---
+# --- INICIALIZACIÓN DE HILOS DE FONDO ---
 # ==============================================================================
 
-if __name__ == '__main__':
-    # --- Integración con el logging de Gunicorn ---
-    # Si la aplicación se está ejecutando bajo Gunicorn, sus loggers se configuran
-    # para usar los handlers de la aplicación Flask. Esto asegura que todos los
-    # logs (incluidos los de los hilos) se muestren en la salida de Docker.
-    gunicorn_logger = logging.getLogger('gunicorn.error')
-    app.logger.handlers = gunicorn_logger.handlers
-    app.logger.setLevel(gunicorn_logger.level)
+# Este código se ejecuta UNA VEZ cuando Gunicorn carga la aplicación.
+# Es el lugar correcto para iniciar los servicios de fondo.
 
-    os.makedirs(DATA_DIR, exist_ok=True)
-    
-    # Crear una única instancia del gestor de autenticación
-    auth_manager = AuthManager(AUTH_URL, FRIDGE_ID, FRIDGE_SECRET)
+os.makedirs(DATA_DIR, exist_ok=True)
 
-    stop_sync_event = threading.Event()
-    sync_thread = threading.Thread(target=sync_with_admin_backend, args=(stop_sync_event, auth_manager), daemon=True)
-    sync_thread.start()
+# Crear una única instancia del gestor de autenticación para toda la aplicación.
+auth_manager = AuthManager(AUTH_URL, FRIDGE_ID, FRIDGE_SECRET)
+
+# Iniciar el hilo que sincroniza la playlist y cachea los medios.
+stop_sync_event = threading.Event()
+sync_thread = threading.Thread(target=sync_with_admin_backend, args=(stop_sync_event, auth_manager), daemon=True)
+sync_thread.start()
