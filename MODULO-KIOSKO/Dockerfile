@@ -5,6 +5,10 @@ FROM python:3.11-alpine
 # Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker' y 'git'.
 RUN apk add --no-cache docker-cli git
 
+# --- ¡SOLUCIÓN! Marcar el directorio del proyecto como seguro para Git ---
+# Esto evita el error "dubious ownership" cuando el contenedor (como root) opera en un volumen montado desde el host (propiedad de otro usuario).
+RUN git config --global --add safe.directory /project
+
 # Establecer el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
