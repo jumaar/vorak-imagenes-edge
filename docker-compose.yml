@@ -51,7 +51,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
 
     group_add:
       - "${VIDEO_GID}"
@@ -92,7 +91,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
     group_add:
       - "${DOCKER_GID}"
   #--------------------------------------------------------------------------
@@ -126,7 +124,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
 
   #--------------------------------------------------------------------------
   # STACK DE MONITOREO - Portainer, Prometheus, etc.
@@ -162,7 +159,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
 
   promtail:
     # --- ¡CORRECCIÓN! ---
@@ -190,7 +186,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
@@ -208,7 +203,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
     privileged: true
     command: --docker_only
 
@@ -235,7 +229,6 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-      - vorak-net
 
 
   #--------------------------------------------------------------------------
