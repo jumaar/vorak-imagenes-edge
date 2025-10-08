@@ -238,7 +238,7 @@ def _run_deployment_script():
     try:
         # Usamos subprocess.run para esperar a que el script termine y capturar su salida.
         result = subprocess.run(
-            ["/project/gitpull.sh"], # <-- ¡SOLUCIÓN! Apuntamos al script en el volumen montado del host.
+            ["./gitpull.sh"], 
             capture_output=True,
             text=True,
             check=False  # No lanzar excepción si falla, lo manejaremos manualmente.
