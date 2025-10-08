@@ -63,10 +63,10 @@ jobs:
           # Esto asegura que el pipeline replique la misma lógica que docker-compose.yml.
           SERVICE_NAME=${{ matrix.service }}
           if [ "$SERVICE_NAME" = "nevera" ]; then
-            echo "build_context=./MODULO-NEVERA" >> $GITHUB_OUTPUT
+            echo "build_context=." >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-NEVERA/Dockerfile" >> $GITHUB_OUTPUT
           elif [ "$SERVICE_NAME" = "kiosko" ]; then
-            echo "build_context=./MODULO-KIOSKO" >> $GITHUB_OUTPUT
+            echo "build_context=." >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-KIOSKO/Dockerfile" >> $GITHUB_OUTPUT
           elif [ "$SERVICE_NAME" = "prometheus" ]; then
             echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT

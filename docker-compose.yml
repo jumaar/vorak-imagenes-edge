@@ -211,3 +211,21 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
+
+
+  #--------------------------------------------------------------------------
+  # SERVICIO 'DEPLOYER' - Contenedor de utilidad para el redespliegue
+  #--------------------------------------------------------------------------
+  deployer:
+    image: docker:cli
+    # --- ¡NUEVO! ---
+    # Este servicio no se ejecuta por defecto, solo se usa como plantilla para 'docker compose run'.
+    container_name: vorak-deployer
+    # Montamos el socket de Docker para que pueda gestionar otros contenedores.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # --- ¡SOLUCIÓN! Montamos el mismo directorio del proyecto para que vea los cambios.
+      - ${PROJECT_PATH:-.}:/project
+    # Cargamos las variables de entorno para que pueda autenticarse en ghcr.io
+    env_file: ./.env
+    working_dir: /project
