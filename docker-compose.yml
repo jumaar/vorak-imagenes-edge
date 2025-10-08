@@ -146,8 +146,7 @@ services:
       - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
       - GRAFANA_CLOUD_PROMETHEUS_API_KEY=${GRAFANA_CLOUD_PROMETHEUS_API_KEY}
     volumes:
-      # Montamos el archivo de configuración como una plantilla para evitar conflictos con volúmenes de la imagen base.
-      - ./MODULO-MONITORING/prometheus.yml.template:/etc/prometheus/prometheus.yml.template
+      - ./MODULO-MONITORING/prometheus.yml:/etc/prometheus/prometheus.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
    
     command:
@@ -157,9 +156,7 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+  
 
   promtail:
     # --- ¡CORRECCIÓN! ---
@@ -176,8 +173,8 @@ services:
       - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
       - GRAFANA_CLOUD_LOKI_API_KEY=${GRAFANA_CLOUD_LOKI_API_KEY}
     volumes:
-      # Montamos el archivo de configuración como una plantilla.
-      - ./MODULO-MONITORING/promtail-config.yml.template:/etc/promtail/config.yml.template
+     
+      - ./MODULO-MONITORING/promtail-config.yml:/etc/promtail/config.yml
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -185,9 +182,7 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2

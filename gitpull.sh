@@ -35,4 +35,4 @@ rm -f ./deploy.log
 # --rm asegura que el contenedor se elimine después de la ejecución.
 # -T deshabilita la asignación de un pseudo-TTY, lo cual es CRUCIAL para evitar
 # que el script se "cuelgue" al redirigir la salida a un archivo de log.
-docker compose -p vorak-edge run -T --rm deployer ./deploy.sh > ./deploy.log 2>&1
+docker compose -p vorak-edge run --rm deployer ./deploy.sh > ./deploy.log 2>&1
