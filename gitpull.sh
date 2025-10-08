@@ -15,6 +15,10 @@ echo "Navegando al directorio del proyecto..."
 cd "$(dirname "$0")"
 
 echo "Forzando actualización desde github (origin/main)..."
+# Solución para el error "dubious ownership".
+# Le decimos a Git que el directorio del proyecto es seguro.
+git config --global --add safe.directory /project
+
 git fetch origin main
 git reset --hard origin/main
 
@@ -27,4 +31,8 @@ rm -f ./deploy.log
 
 # Ejecuta el script de despliegue dentro de un contenedor 'deployer' temporal.
 # --rm asegura que el contenedor se elimine después de la ejecución.
-docker compose -p vorak-edge run --rm deployer ./deploy.sh > ./deploy.log 2>&1
+# Ejecuta el script de despliegue dentro de un contenedor 'deployer' temporal.
+# --rm asegura que el contenedor se elimine después de la ejecución.
+# -T deshabilita la asignación de un pseudo-TTY, lo cual es CRUCIAL para evitar
+# que el script se "cuelgue" al redirigir la salida a un archivo de log.
+docker compose -p vorak-edge run -T --rm deployer ./deploy.sh > ./deploy.log 2>&1

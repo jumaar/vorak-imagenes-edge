@@ -7,9 +7,10 @@ set -e
 echo "Promtail Entrypoint: Procesando archivo de configuración..."
 
 # Sustituye las variables de entorno en el archivo de configuración
-envsubst < /etc/promtail/config.yml > /etc/promtail/processed-config.yml
+# Leemos desde la plantilla montada y escribimos en la ruta final que Promtail espera.
+envsubst < /etc/promtail/config.yml.template > /etc/promtail/config.yml
 
 echo "Promtail Entrypoint: Configuración procesada. Iniciando Promtail..."
-# Pasa el control al comando original de Promtail, usando los argumentos que se le pasen a este script.
-# --- ¡CORRECCIÓN FINAL! ---
-exec /usr/bin/promtail -config.file=/etc/promtail/processed-config.yml "$@"
+# Pasa el control al comando original de Promtail.
+# Le indicamos explícitamente que use el archivo de configuración que acabamos de generar para mayor claridad.
+exec /usr/bin/promtail -config.file=/etc/promtail/config.yml "$@"

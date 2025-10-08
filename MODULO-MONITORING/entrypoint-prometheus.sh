@@ -9,8 +9,10 @@ echo "Prometheus Entrypoint: Procesando archivo de configuración..."
 # Sustituye las variables de entorno en el archivo de configuración
 # --- ¡CORRECCIÓN! ---
 # No podemos sobreescribir un archivo montado. Guardamos el resultado en un nuevo archivo.
-envsubst < /etc/prometheus/prometheus.yml > /etc/prometheus/prometheus-processed.yml
+# Leemos desde la plantilla montada y escribimos en la ruta final que Prometheus espera.
+envsubst < /etc/prometheus/prometheus.yml.template > /etc/prometheus/prometheus.yml
 
 echo "Prometheus Entrypoint: Configuración procesada. Iniciando Prometheus..."
-# Pasa el control al comando original de Prometheus, usando los argumentos que se le pasen a este script.
-exec /bin/prometheus --config.file=/etc/prometheus/prometheus-processed.yml "$@"
+# Pasa el control al comando original de Prometheus.
+# Le indicamos explícitamente que use el archivo de configuración que acabamos de generar para mayor claridad.
+exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml "$@"
