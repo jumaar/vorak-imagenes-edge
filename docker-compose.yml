@@ -1,9 +1,6 @@
 networks:
   vorak-net:
     driver: bridge
-    dns:
-      - 8.8.8.8  
-      - 1.1.1.1  
       
 volumes:
   nevera_db:
@@ -51,6 +48,10 @@ services:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     networks:
       - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - vorak-net
 
     group_add:
       - "${VIDEO_GID}"
@@ -88,6 +89,10 @@ services:
       - fridge_status:/app/status
     networks:
       - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - vorak-net
     group_add:
       - "${DOCKER_GID}"
   #--------------------------------------------------------------------------
@@ -117,6 +122,10 @@ services:
       # Monta el volumen de destino donde se guardarán los backups
       - backup_data:/backups/destination
     networks:
+      - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
       - vorak-net
 
   #--------------------------------------------------------------------------
@@ -150,6 +159,10 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - vorak-net
 
   promtail:
     # --- ¡CORRECCIÓN! ---
@@ -174,6 +187,10 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - vorak-net
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
@@ -187,6 +204,10 @@ services:
       - /etc/machine-id:/etc/machine-id:ro
     restart: unless-stopped
     networks:
+      - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
       - vorak-net
     privileged: true
     command: --docker_only
@@ -211,6 +232,10 @@ services:
     restart: unless-stopped
     networks:
       - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - vorak-net
 
 
   #--------------------------------------------------------------------------
@@ -229,3 +254,10 @@ services:
     # Cargamos las variables de entorno para que pueda autenticarse en ghcr.io
     env_file: ./.env
     working_dir: /project
+    # Aunque este servicio se ejecuta con 'run', es buena práctica definir la red
+    # y el DNS para asegurar que pueda resolver dominios como ghcr.io
+    networks:
+      - vorak-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
