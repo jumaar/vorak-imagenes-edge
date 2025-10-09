@@ -23,31 +23,23 @@ services:
     image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:latest 
     container_name: vorak-nevera
     restart: unless-stopped
-    environment:
-      
-      - FRIDGE_ID=${FRIDGE_ID}
-      - BASE_BACKEND_URL=${BASE_BACKEND_URL}
-      - FRIDGE_SECRET=${FRIDGE_SECRET} 
-      - CAMERA_DEVICES=/dev/video0,/dev/video2 # IMPORTANTE: Ajusta esto a tus cámaras
-      - BAUD_RATE=115200
+    
+    env_file: ./.env
+
     volumes:
-      # Volumen para la base de datos de productos
       - nevera_db:/app/db
-      # Volumen para guardar transacciones si no hay conexión
       - nevera_offline_queue:/app/offline_queue
-      # Volumen para guardar imágenes de sesiones de baja confianza
       - nevera_review_queue:/app/review_queue
-      # Volumen compartido para comunicar el estado al kiosko
       - fridge_status:/app/status
+
     devices:
-      # --- Acceso al Hardware del Host ---
-      # Permite al contenedor acceder a las cámaras
       - "/dev/video0:/dev/video0"
       - "/dev/video2:/dev/video2"
-      # Permite al contenedor acceder al ESP32 (ajusta si es necesario)
       - "/dev/ttyUSB0:/dev/ttyUSB0"
+
     networks:
       - vorak-net
+      
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -68,29 +60,28 @@ services:
     image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:latest 
     container_name: vorak-kiosko
     restart: unless-stopped
+  
     ports:
-      # Expone el puerto del servidor web para que el navegador del host pueda acceder
       - "5000:5000"
-      # Expone el puerto para el webhook, que apunta al mismo servidor interno.
       - "9091:5000"
-    # --- ¡CORRECCIÓN! ---
-    # Usamos 'env_file' para cargar TODAS las variables del .env en el contenedor.
-    # Esto asegura que el script de redespliegue tenga acceso a todo lo que necesita.
+  
     env_file: ./.env
+  
     volumes:
-      # --- ¡NUEVO! Permisos para controlar Docker ---
       - /var/run/docker.sock:/var/run/docker.sock
-      # --- ¡SOLUCIÓN! Montar el directorio del proyecto para acceder a git y docker-compose.yml ---
       - .:/app
-       # Volumen para la caché de medios y la playlist
-      - kiosk_data:/app/data
-      # Volumen compartido para leer el estado de la nevera
       - fridge_status:/app/status
+      - kiosk_data:/app/data
+  
+    working_dir: /app/MODULO-KIOSKO
+  
     networks:
       - vorak-net
+  
     dns:
       - 8.8.8.8
       - 1.1.1.1
+  
     group_add:
       - "${DOCKER_GID}"
   #--------------------------------------------------------------------------
@@ -112,15 +103,14 @@ services:
         done
       "
     volumes:
-      # Monta el script de backup dentro del contenedor
       - ./MODULO-BACKUP/backup.sh:/backup/backup.sh
-      # Monta los volúmenes de origen (solo lectura para seguridad)
       - nevera_offline_queue:/backups/source/offline_queue:ro
       - nevera_review_queue:/backups/source/review_queue:ro
-      # Monta el volumen de destino donde se guardarán los backups
       - backup_data:/backups/destination
+
     networks:
       - vorak-net
+      
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -129,22 +119,17 @@ services:
   # STACK DE MONITOREO - Portainer, Prometheus, etc.
   #--------------------------------------------------------------------------
   prometheus:
-    # --- ¡CORRECCIÓN! ---
-    # Usamos 'build' para crear una imagen personalizada que incluya 'envsubst'.
     build:
       context: ./MODULO-MONITORING
       dockerfile: prometheus.Dockerfile
     image: ghcr.io/jumaar/vorak-imagenes-edge/prometheus:latest
     container_name: vorak-prometheus
+
     ports:
-      # Mapea el puerto 9090 del host al puerto 9090 del contenedor
       - "9090:9090"
-    environment:
-      # --- ¡CORRECCIÓN! ---
-      # Pasamos las variables del .env para que se sustituyan en prometheus.yml
-      - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
-      - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
-      - GRAFANA_CLOUD_PROMETHEUS_API_KEY=${GRAFANA_CLOUD_PROMETHEUS_API_KEY}
+    
+    env_file: ./.env
+    
     volumes:
       - ./MODULO-MONITORING/prometheus.yml:/etc/prometheus/prometheus.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -153,25 +138,22 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+
     restart: unless-stopped
+
     networks:
       - vorak-net
   
 
   promtail:
-    # --- ¡CORRECCIÓN! ---
-    # Usamos 'build' para crear una imagen personalizada que incluya 'envsubst'.
     build:
       context: ./MODULO-MONITORING
       dockerfile: promtail.Dockerfile
     image: ghcr.io/jumaar/vorak-imagenes-edge/promtail:latest
     container_name: vorak-promtail
-    environment:
-      # --- ¡CORRECCIÓN! ---
-      # Pasamos las variables del .env para que se sustituyan en promtail.dev.yml
-      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
-      - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
-      - GRAFANA_CLOUD_LOKI_API_KEY=${GRAFANA_CLOUD_LOKI_API_KEY}
+    
+    env_file: ./.env
+    
     volumes:
      
       - ./MODULO-MONITORING/promtail-config.yml:/etc/promtail/config.yml
@@ -187,6 +169,7 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: vorak-cadvisor
+    
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:rw
@@ -195,18 +178,23 @@ services:
       - /dev:/dev:ro
       - /etc/machine-id:/etc/machine-id:ro
     restart: unless-stopped
+
     networks:
       - vorak-net
+
     dns:
       - 8.8.8.8
       - 1.1.1.1
+
     privileged: true
+
     command: --docker_only
 
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
     container_name: vorak-node-exporter
+
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -215,14 +203,14 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
-      # --- ¡MEJORA! ---
-      # Excluimos explícitamente los puntos de montaje de Docker para evitar métricas duplicadas con cAdvisor.
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run/docker/netns|var/lib/docker/containers|var/lib/docker/overlay2)($$|/)'
-      # --- ¡SOLUCIÓN! Desactivamos el colector NFSd que no es necesario y genera errores. ---
       - '--no-collector.nfsd'
+
     restart: unless-stopped
+
     networks:
       - vorak-net
+
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -233,8 +221,6 @@ services:
   #--------------------------------------------------------------------------
   deployer:
     image: docker:cli
-    # --- ¡NUEVO! ---
-    # Este servicio no se ejecuta por defecto, solo se usa como plantilla para 'docker compose run'.
     container_name: vorak-deployer
     
     volumes:
@@ -242,11 +228,12 @@ services:
       - .:/app
 
     env_file: ./.env
+
     working_dir: /app
-    # Aunque este servicio se ejecuta con 'run', es buena práctica definir la red
-    # y el DNS para asegurar que pueda resolver dominios como ghcr.io
+
     networks:
       - vorak-net
+
     dns:
       - 8.8.8.8
       - 1.1.1.1
