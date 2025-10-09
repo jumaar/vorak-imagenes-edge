@@ -37,9 +37,11 @@ RUN apk update && \
 # Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'.
 COPY --from=builder /opt/venv /opt/venv
 
-# Copiamos el código de la aplicación y damos permisos de ejecución al script de despliegue en una sola capa.
+# Copiamos el código de la aplicación.
 COPY ./MODULO-KIOSKO/ .
-RUN chmod +x ./run_deployer.sh
+# --- ¡SOLUCIÓN DEFINITIVA! ---
+# Damos permisos de ejecución a nuestros scripts de shell.
+RUN chmod +x ./run_deployer.sh ./entrypoint.sh
 
 # Activamos el entorno virtual para los comandos siguientes
 ENV PATH="/opt/venv/bin:$PATH"
@@ -49,6 +51,10 @@ RUN ln -sf /opt/venv/bin/python /opt/venv/bin/python3
  
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091
+
+# Establecemos nuestro script como el punto de entrada.
+# Se ejecutará cada vez que el contenedor inicie.
+ENTRYPOINT ["./entrypoint.sh"]
 
 # Comando para iniciar Gunicorn
 # Gunicorn buscará la aplicación 'app' dentro del módulo 'kiosk.py'
