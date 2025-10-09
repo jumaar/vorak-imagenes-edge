@@ -23,12 +23,9 @@ FROM python:3.11-alpine
 
 WORKDIR /app
 
-# Esto es necesario porque kiosk.py ahora usa 'subprocess' para llamar a 'docker compose'.
-RUN apk add --no-cache docker-cli docker-compose-v2
-# Nota: 'docker-compose-v2' instala el plugin 'compose' para el comando 'docker compose ...'
-#
-# Limpiar la caché de apk para mantener la imagen ligera.
-RUN rm -rf /var/cache/apk/*
+# 1. `apk update`: Refresca la lista de paquetes disponibles.
+# 2. `apk add`: Instala el cliente de Docker y el plugin de Compose (el paquete se llama 'docker-compose').
+RUN apk update && apk add --no-cache docker-cli docker-compose
 
 
 # Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'
