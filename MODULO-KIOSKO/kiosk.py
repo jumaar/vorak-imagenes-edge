@@ -241,9 +241,9 @@ def _run_deployment_container():
         command = [
             "docker", "compose",
             "-p", project_name,
-            "run", "--rm", "-d", # -d para detached, --rm para auto-remover
-            "deployer", # El nombre del servicio a ejecutar
-            "/app/deploy.sh" # El comando a ejecutar dentro del contenedor
+            "run", "--rm", "-d",
+            "deployer",
+            "sh", "-c", "/app/deploy.sh >> /app/deploy.log 2>&1"
         ]
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
         result = subprocess.run(command, capture_output=True, text=True)
