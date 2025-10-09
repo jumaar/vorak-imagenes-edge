@@ -239,7 +239,7 @@ def _run_deployment_container():
         # Esto es más simple y utiliza directamente la configuración de docker-compose.yml.
         project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge")
         command = [
-            "docker-compose", # <-- ¡CORRECCIÓN! Usar la sintaxis con guion para mayor compatibilidad.
+            "docker compose", # <-- ¡CORRECCIÓN! Usar la sintaxis con guion para mayor compatibilidad.
             "-p", project_name, 
             "run", "--rm",
             "deployer",
