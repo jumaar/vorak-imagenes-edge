@@ -25,7 +25,7 @@ WORKDIR /app
 
 # 1. `apk update`: Refresca la lista de paquetes disponibles.
 # 2. `apk add`: Instala el cliente de Docker y el plugin de Compose (el paquete se llama 'docker-compose').
-RUN apk update && apk add --no-cache docker-cli docker-compose
+RUN apk update && apk add --no-cache docker
 
 
 # Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'
