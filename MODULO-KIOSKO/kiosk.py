@@ -248,7 +248,7 @@ def _run_deployment_container():
 
         container = client.containers.run(
             image="docker:cli",
-            command=["sh", "-c", "./deploy.sh"], # Ejecutamos el script deploy.sh
+            command=["sh", "-c", "/app/deploy.sh"],
             volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}, '/app': {'bind': '/app', 'mode': 'rw'}}, # ¡CORREGIDO! Montar el directorio raíz del proyecto.
             working_dir="/app",
             network=full_network_name, # ¡CORREGIDO! Usar el nombre de red completo y dinámico.

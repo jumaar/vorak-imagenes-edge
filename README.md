@@ -68,7 +68,10 @@ docker compose -p vorak-edge down
 docker compose -p vorak-edge pull
 docker compose -p vorak-edge up -d --remove-orphans
 
+# revisar los eventos entiempo real de la red de docker que se quiera ver
+docker events --filter 'network=vorak-edge_vorak-net'
 ---
+
 
 ### Comandos de Depuración
 
