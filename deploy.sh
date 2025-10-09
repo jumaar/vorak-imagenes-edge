@@ -3,52 +3,58 @@
 
 set -e # Salir inmediatamente si un comando falla
 
-echo "----------------------------------------------------"
-echo "Iniciando proceso de ACTUALIZACIÓN Y DESPLIEGUE..."
-echo "Fecha: $(date)"
-echo "----------------------------------------------------"
+# --- ¡MEJORA! ---
+# Eliminar el log anterior para empezar de cero en cada despliegue.
+rm -f deploy.log
 
+# Redirigir toda la salida (stdout y stderr) de este bloque de código al archivo deploy.log
+exec >> deploy.log 2>&1
 
+{
+  echo "----------------------------------------------------"
+  echo "Iniciando proceso de ACTUALIZACIÓN Y DESPLIEGUE..."
+  echo "Fecha: $(date)"
+  echo "----------------------------------------------------"
 
+  # 1. ACTUALIZAR CÓDIGO FUENTE DESDE GIT
+  echo "Forzando actualización desde github (origin/main)..."
+  # Le decimos a Git que el directorio del proyecto es seguro.
+  git config --global --add safe.directory /app
+  git fetch origin main
+  git reset --hard origin/main
+  echo "✅ Código fuente actualizado."
 
-# 1. ACTUALIZAR CÓDIGO FUENTE DESDE GIT
-echo "Forzando actualización desde github (origin/main)..."
-# Le decimos a Git que el directorio del proyecto es seguro.
-git config --global --add safe.directory /app
-git fetch origin main
-git reset --hard origin/main
-echo "✅ Código fuente actualizado."
+  # 2. Verificar que el archivo .env exista.
+  echo "Verificando la existencia del archivo .env..."
+  if [ ! -f ".env" ]; then
+      echo "Error: No se encontró el archivo .env. Por favor, créalo a partir de .env.template."
+      exit 1
+  fi
 
-# 2. Verificar que el archivo .env exista.
-echo "Verificando la existencia del archivo .env..."
-if [ ! -f ".env" ]; then
-    echo "Error: No se encontró el archivo .env. Por favor, créalo a partir de .env.template."
+  # 3. Cargar variables de entorno para el login de Docker.
+  export $(grep -v '^#' .env | xargs)
+
+  echo "Autenticando en el registro de contenedores (ghcr.io)..."
+  if [ -n "$GHCR_USER" ] && [ -n "$GHCR_TOKEN" ]; then
+    # Ocultar el token del log por seguridad
+    echo "GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+  else
+    echo "Error: Las variables GHCR_USER o GHCR_TOKEN no están definidas en .env."
     exit 1
-fi
+  fi
 
-# 3. Cargar variables de entorno para el login de Docker.
-export $(grep -v '^#' .env | xargs)
+  echo "Descargando las últimas versiones de las imágenes con 'docker compose pull'..."
+  docker compose -p vorak-edge --env-file ./.env pull
 
-echo "Autenticando en el registro de contenedores (ghcr.io)..."
-if [ -n "$GHCR_USER" ] && [ -n "$GHCR_TOKEN" ]; then
-  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-else
-  echo "Error: Las variables GHCR_USER o GHCR_TOKEN no están definidas en .env."
-  exit 1
-fi
+  echo "Redesplegando la pila de servicios con 'docker compose up'..."
 
+  # Se ejecuta 'up' para toda la pila. Docker Compose es lo suficientemente inteligente
+  # para no considerar un contenedor 'run' en ejecución como un "huérfano" a eliminar.
+  docker compose -p vorak-edge up -d --no-build --remove-orphans
 
-echo "Descargando las últimas versiones de las imágenes con 'docker compose pull'..."
-docker compose -p vorak-edge --env-file ./.env pull
+  echo "Limpiando imágenes de Docker antiguas (dangling)..."
 
-echo "Redesplegando la pila de servicios con 'docker compose up'..."
+  docker image prune -f
 
-# Se ejecuta 'up' para toda la pila. Docker Compose es lo suficientemente inteligente
-# para no considerar un contenedor 'run' en ejecución como un "huérfano" a eliminar.
-docker compose -p vorak-edge up -d --no-build --remove-orphans
-
-echo "Limpiando imágenes de Docker antiguas (dangling)..."
-
-docker image prune -f
-
-echo "✅ Proceso de despliegue finalizado. Los servicios han sido actualizados."
+  echo "✅ Proceso de despliegue finalizado. Los servicios han sido actualizados."
+}
