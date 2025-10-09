@@ -34,7 +34,7 @@ exec >> deploy.log 2>&1
   echo "Autenticando en el registro de contenedores (ghcr.io)..."
   if [ -n "$GHCR_USER" ] && [ -n "$GHCR_TOKEN" ]; then
     # Ocultar el token del log por seguridad
-    echo "GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
   else
     echo "Error: Las variables GHCR_USER o GHCR_TOKEN no están definidas en .env."
     exit 1
