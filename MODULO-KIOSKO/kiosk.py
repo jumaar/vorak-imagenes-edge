@@ -241,7 +241,7 @@ def _run_deployment_container():
         command = [
             "docker", "compose",
             "-p", project_name,
-            "run", "--rm", "-d",
+            "run", "--rm",
             "deployer",
             "sh", "-c", "/app/deploy.sh >> /app/deploy.log 2>&1"
         ]
