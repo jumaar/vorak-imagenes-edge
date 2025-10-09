@@ -9,7 +9,7 @@ RUN apk add --no-cache git
 WORKDIR /app
 
 # Copiar todo el contexto de construcción (el directorio del proyecto) a la imagen.
-COPY . .
+COPY deploy.sh .
 
 # Hacer el script ejecutable
 RUN chmod +x deploy.sh
