@@ -240,6 +240,7 @@ def _run_deployment_container():
         project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge")
         command = [
             "docker", "compose",
+            "-f", "/app/docker-compose.yml",
             "-p", project_name,
             "run", "--rm",
             "deployer",

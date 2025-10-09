@@ -83,7 +83,7 @@ services:
       - 1.1.1.1
   
     group_add:
-      - "${DOCKER_GID}"
+      - "${DOCKER_GID:-$(stat -c '%g' /var/run/docker.sock)}"
   #--------------------------------------------------------------------------
   # SERVICIO 'BACKUP' - Realiza copias de seguridad periódicas
   #--------------------------------------------------------------------------
