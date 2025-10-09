@@ -11,8 +11,8 @@ echo "Iniciando actualización de código fuente..."
 echo "Fecha: $(date)"
 echo "----------------------------------------------------"
 
-echo "Navegando al directorio del proyecto..."
-cd "$(dirname "$0")"
+echo "Navegando al directorio del proyecto montado en /project..."
+cd /project
 
 echo "Forzando actualización desde github (origin/main)..."
 # Solución para el error "dubious ownership".
