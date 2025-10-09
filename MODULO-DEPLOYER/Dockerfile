@@ -7,3 +7,6 @@ RUN apk add --no-cache git
 
 # Establecer el directorio de trabajo por defecto.
 WORKDIR /app
+
+# Copiar todo el contexto de construcción (el directorio del proyecto) a la imagen.
+COPY . .

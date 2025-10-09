@@ -244,7 +244,7 @@ def _run_deployment_container():
             "-p", project_name,
             "run", "--rm",
             "deployer",
-            "sh", "-c", "/app/deploy.sh >> /app/deploy.log 2>&1"
+            "sh", "-c", "/deploy.sh >> /deploy.log 2>&1"
         ]
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
         # Ejecutamos el comando como una cadena con shell=True para manejar la redirección de logs.
