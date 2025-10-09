@@ -1,46 +1,52 @@
 # ==============================================================================
 # --- ETAPA 1: BUILDER ---
-# Esta etapa crea un entorno virtual con todas las dependencias de Python.
+# Esta etapa crea un entorno virtual aislado con todas las dependencias de Python.
+# El resultado es una carpeta /opt/venv que se copiará a la etapa final.
 # ==============================================================================
 FROM python:3.11-alpine AS builder
 
-# Creamos un directorio para el entorno virtual
+# Establecemos el directorio de trabajo
+WORKDIR /app
+
+# Creamos el entorno virtual dentro del directorio de trabajo
 RUN python -m venv /opt/venv
 
-# Hacemos que los comandos 'pip' y 'python' usen el entorno virtual
+# Activamos el entorno virtual para los comandos siguientes
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copiamos solo el archivo de requisitos e instalamos las dependencias DENTRO del venv
-COPY MODULO-KIOSKO/requirements.txt .
+# Copiamos solo el archivo de requisitos para aprovechar la caché de Docker
+COPY ./MODULO-KIOSKO/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ==============================================================================
 # --- ETAPA 2: FINAL ---
-# Esta es la imagen final, súper ligera. Solo copia el entorno virtual
-# y el código de la aplicación. No contiene herramientas de build.
+# Esta es la imagen final, optimizada para ser ligera y segura.
+# No contiene herramientas de compilación, solo lo necesario para ejecutar la aplicación.
 # ==============================================================================
 FROM python:3.11-alpine
 
-WORKDIR /app
+WORKDIR /app/MODULO-KIOSKO
 
-# 1. `apk update`: Refresca la lista de paquetes disponibles.
-# 2. `apk add`: Instala el cliente de Docker y el plugin de Compose (el paquete se llama 'docker-compose').
-RUN apk update && apk add --no-cache docker
+# --- ¡MEJORA! ---
+# Instalamos tanto 'docker' (el cliente) como 'docker-compose' (el plugin, necesario para run_deployer.sh).
+# Usamos --no-cache para no guardar el índice de paquetes y limpiamos la caché al final.
+RUN apk update && \
+    apk add --no-cache docker docker-compose && \
+    rm -rf /var/cache/apk/*
 
-
-# Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'
+# Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'.
 COPY --from=builder /opt/venv /opt/venv
 
-# Copiamos el código de la aplicación.
-# Nota: Esto es opcional si siempre usas un volumen, pero es buena práctica tenerlo.
-COPY MODULO-KIOSKO/ .
+# Copiamos el código de la aplicación y damos permisos de ejecución al script de despliegue en una sola capa.
+COPY ./MODULO-KIOSKO/ .
+RUN chmod +x ./run_deployer.sh
 
 # Activamos el entorno virtual para los comandos siguientes
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Creamos un enlace simbólico para que 'python3' apunte a 'python' dentro del entorno virtual.
 RUN ln -sf /opt/venv/bin/python /opt/venv/bin/python3
-
+ 
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091
 

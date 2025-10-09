@@ -233,39 +233,25 @@ def _run_deployment_container():
     """
     logging.info("[Deploy] Iniciando contenedor 'deployer' para la actualización...")
     try:
-        # --- ¡MEJORA DE ROBUSTEZ! ---
-        # En lugar de crear un contenedor manualmente con la librería de Docker,
-        # usamos un subproceso para ejecutar 'docker compose run'.
-        # Esto es más simple y utiliza directamente la configuración de docker-compose.yml.
-        
-        # --- ¡SOLUCIÓN DEFINITIVA! ---
-        # En lugar de usar el flag '-p', que puede causar problemas de parsing,
-        # definimos el nombre del proyecto a través de una variable de entorno.
-        # Este método es más robusto y compatible con todas las versiones de Docker Compose.
-        project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge") # Leemos el nombre del proyecto
-        
-        # Usamos 'docker-compose' con guion para máxima compatibilidad.
-        command = [
-            "docker compose",
-            "run", "--rm",
-            "deployer" # <-- SIMPLIFICACIÓN: El comando a ejecutar ya está en el Dockerfile del deployer.
-        ]
-        
-        # Creamos una copia del entorno actual y añadimos nuestra variable.
-        env = os.environ.copy()
-        env["COMPOSE_PROJECT_NAME"] = project_name
-
+        # --- ¡NUEVA ESTRATEGIA! ---
+        # Delegamos la ejecución del comando a un script de shell dedicado (run_deployer.sh).
+        # Esto simplifica el código de Python y evita problemas de parsing de argumentos.
+        # El script debe tener permisos de ejecución (chmod +x).
+        # El working_dir del contenedor kiosko está en /app/MODULO-KIOSKO, por lo que la ruta es relativa.
+        command = ["./run_deployer.sh"]
+ 
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
-        # Ejecutamos el comando pasando el entorno modificado.
-        result = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+        # Ejecutamos el script. No necesitamos modificar el entorno aquí,
+        # ya que el script y docker-compose heredarán las variables necesarias.
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
 
         # Verificar si el comando falló y registrar la salida de error.
         if result.returncode != 0:
-            logging.error(f"❌ [Deploy] El comando 'docker compose run' falló con código {result.returncode}.")
+            logging.error(f"❌ [Deploy] El script '{command[0]}' falló con código {result.returncode}.")
             logging.error(f"   [Deploy] Stderr: {result.stderr.strip()}")
             raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
 
-        logging.info("✅ [Deploy] Comando 'docker compose run deployer' lanzado con éxito en segundo plano.")
+        logging.info("✅ [Deploy] Script de despliegue ejecutado con éxito.")
     except (subprocess.CalledProcessError, Exception) as e:
         logging.critical(f"CRÍTICO: No se pudo ejecutar el contenedor de despliegue: {e}")
 
