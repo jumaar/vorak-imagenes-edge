@@ -34,7 +34,7 @@ PLAYLIST_FILE = os.path.join(DATA_DIR, "playlist.json")
 STATUS_FILE = "/app/status/fridge_status.json" # Ruta al volumen compartido con la nevera
 
 # Intervalo para sincronizar con el backend (en segundos)
-SYNC_INTERVAL_SECONDS = 1200  # 15 minutos
+SYNC_INTERVAL_SECONDS = 1200  # 20 minutos
 
 # Configuración del servidor Flask
 FLASK_PORT = 5000
@@ -97,18 +97,19 @@ def sync_with_admin_backend(stop_event, auth_manager):
     Hilo que se ejecuta periódicamente para descargar la playlist y los medios
     desde el backend de administración.
     """
-    # --- ¡SOLUCIÓN! ---
-    # Hacemos una primera sincronización inmediata al arrancar el hilo,
-    # sin esperar el intervalo completo.
-    is_first_run = True
     while not stop_event.is_set():
+        # --- ¡MEJORA DE ROBUSTEZ! ---
+        # La primera ejecución es inmediata. Las siguientes esperarán el intervalo
+        # ANTES de volver a ejecutar. Esto asegura que la UI tenga datos al arrancar.
+        
         # --- VERIFICACIÓN DE URL BASE ---
         if not BASE_BACKEND_URL:
             logging.warning("La variable BASE_BACKEND_URL no está definida. El kiosko no puede sincronizar la playlist. Verifique el archivo .env.")
-            stop_event.wait(SYNC_INTERVAL_SECONDS) # Esperar el intervalo completo antes de volver a verificar.
+            # Esperar el intervalo completo antes de volver a verificar.
+            if stop_event.wait(SYNC_INTERVAL_SECONDS): break
             continue
+
         logging.info(f"Iniciando sincronización de playlist. Conectando a: {KIOSK_BACKEND_URL}")
-        os.makedirs(CACHE_DIR, exist_ok=True)
 
         try:
             token = auth_manager.get_token()
@@ -117,13 +118,14 @@ def sync_with_admin_backend(stop_event, auth_manager):
                 # --- ¡SOLUCIÓN! ---
                 # Esperamos 60s y usamos 'continue' para forzar el reinicio del bucle
                 # y evitar que el código siga ejecutándose sin token.
-                stop_event.wait(60)
+                if stop_event.wait(60): break
                 continue # Volver al inicio del bucle para reintentar.
 
             # 1. Obtener la playlist desde el backend
             headers = {"Authorization": f"Bearer {token}"}
             response = requests.get(KIOSK_BACKEND_URL, headers=headers, timeout=15)
             response.raise_for_status()
+            os.makedirs(CACHE_DIR, exist_ok=True) # Crear el directorio solo si la descarga es exitosa
             playlist_data = response.json()
             logging.info(f"✅ Playlist recibida del backend con {len(playlist_data.get('media', []))} elemento(s).")
 
@@ -161,13 +163,8 @@ def sync_with_admin_backend(stop_event, auth_manager):
         except (json.JSONDecodeError, KeyError) as e:
             logging.error(f"Error al procesar la playlist recibida del backend: {e}")
 
-        # --- ¡SOLUCIÓN! ---
-        # Esperamos el intervalo DESPUÉS de la ejecución.
-        # En la primera vuelta, esperamos solo 1 segundo para que la app arranque completamente.
-        wait_time = 1 if is_first_run else SYNC_INTERVAL_SECONDS
-        is_first_run = False
-        if stop_event.wait(wait_time):
-            break # Salir del bucle si el evento de parada se activa.
+        # Esperar el intervalo para la siguiente sincronización.
+        if stop_event.wait(SYNC_INTERVAL_SECONDS): break
 
 # ==============================================================================
 # --- HILO 1: SERVIDOR WEB FLASK (EL "PROYECTOR") ---
@@ -237,33 +234,30 @@ def _run_deployment_container():
     """
     logging.info("[Deploy] Iniciando contenedor 'deployer' para la actualización...")
     try:
-        # Conectarse al Docker socket montado en el contenedor
-        
-        client = docker.from_env()
-            # Obtener el nombre del proyecto de Docker Compose para construir la red
-            # Si no se encuentra, usar 'vorak-edge' como valor por defecto.
-        project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge") # Usar 'vorak-edge' como fallback
-        full_network_name = f"{project_name}_vorak-net"
-        logging.info(f"[Deploy] Conectando el contenedor 'deployer' a la red: {full_network_name}")
+        # --- ¡MEJORA DE ROBUSTEZ! ---
+        # En lugar de crear un contenedor manualmente con la librería de Docker,
+        # usamos un subproceso para ejecutar 'docker compose run'.
+        # Esto es más simple y utiliza directamente la configuración de docker-compose.yml.
+        project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge")
+        command = [
+            "docker", "compose",
+            "-p", project_name,
+            "run", "--rm", "-d", # -d para detached, --rm para auto-remover
+            "deployer", # El nombre del servicio a ejecutar
+            "/app/deploy.sh" # El comando a ejecutar dentro del contenedor
+        ]
+        logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True)
 
-        container = client.containers.run(
-            image="docker:cli",
-            # --- ¡SOLUCIÓN DEFINITIVA! ---
-            # Ejecutamos el script directamente. Es más robusto que usar 'sh -c'.
-            # Esto requiere que el archivo deploy.sh tenga permisos de ejecución (chmod +x).
-            command="/app/deploy.sh",
-            volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}, '/app': {'bind': '/app', 'mode': 'rw'}}, # ¡CORREGIDO! Montar el directorio raíz del proyecto.
-            working_dir="/app",
-            network=full_network_name, # ¡CORREGIDO! Usar el nombre de red completo y dinámico.
-            detach=True, # ¡CLAVE! Ejecutar en segundo plano y no esperar.
-            auto_remove=True, # ¡CLAVE! Equivalente a --rm.
-            environment=dict(os.environ) # Pasa todas las variables de entorno del kiosko
-        )
+        # Verificar si el comando falló y registrar la salida de error.
+        if result.returncode != 0:
+            logging.error(f"❌ [Deploy] El comando 'docker compose run' falló con código {result.returncode}.")
+            logging.error(f"   [Deploy] Stderr: {result.stderr.strip()}")
+            raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
 
-        logging.info(f"✅ [Deploy] Contenedor 'deployer' ({container.short_id}) lanzado en segundo plano para ejecutar la actualización.")
-
-    except Exception as e:
-        logging.critical(f"CRÍTICO: No se pudo ejecutar el hilo de despliegue: {e}")
+        logging.info("✅ [Deploy] Comando 'docker compose run deployer' lanzado con éxito en segundo plano.")
+    except (subprocess.CalledProcessError, Exception) as e:
+        logging.critical(f"CRÍTICO: No se pudo ejecutar el contenedor de despliegue: {e}")
 
 # --- ¡NUEVO! ENDPOINT PARA EL WEBHOOK DE REDESPLIEGUE ---
 @app.route('/update/<token>', methods=['POST'])

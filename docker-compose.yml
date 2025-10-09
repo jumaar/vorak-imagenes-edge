@@ -219,8 +219,15 @@ services:
   #--------------------------------------------------------------------------
   # SERVICIO 'DEPLOYER' - Contenedor de utilidad para el redespliegue
   #--------------------------------------------------------------------------
-  deployer:
-    image: docker:cli
+  deployer:    
+    # --- ¡SOLUCIÓN! ---
+    # Usamos un perfil para que este servicio no se inicie por defecto con 'docker compose up'.
+    # Solo se ejecutará cuando se llame explícitamente con 'docker compose run deployer'
+    # o si se activa el perfil con 'docker compose --profile tools up'.
+    profiles:
+      - tools
+
+    image: ghcr.io/jumaar/vorak-imagenes-edge/deployer:latest
     container_name: vorak-deployer
     
     volumes:

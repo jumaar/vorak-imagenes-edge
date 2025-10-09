@@ -29,8 +29,8 @@ jobs:
     strategy:
       # Ejecuta un trabajo para cada servicio en paralelo
       matrix:
-        # --- ¡CORRECCIÓN! --- Añadimos los 4 servicios que necesitan una imagen personalizada.
-        service: [nevera, kiosko, prometheus, promtail]
+        # --- ¡MEJORA! --- Añadimos el nuevo servicio 'deployer' a la matriz de construcción.
+        service: [nevera, kiosko, prometheus, promtail, deployer]
 
     steps:
       - name: Checkout repository
@@ -74,6 +74,9 @@ jobs:
           elif [ "$SERVICE_NAME" = "promtail" ]; then
             echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-MONITORING/promtail.Dockerfile" >> $GITHUB_OUTPUT
+          elif [ "$SERVICE_NAME" = "deployer" ]; then
+            echo "build_context=./MODULO-DEPLOYER" >> $GITHUB_OUTPUT
+            echo "dockerfile_path=./MODULO-DEPLOYER/Dockerfile" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push Docker image
