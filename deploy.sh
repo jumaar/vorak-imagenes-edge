@@ -45,9 +45,7 @@ exec >> deploy.log 2>&1
 
   echo "Redesplegando la pila de servicios con 'docker compose up'..."
 
-  # Se ejecuta 'up' para toda la pila. Docker Compose es lo suficientemente inteligente
-  # para no considerar un contenedor 'run' en ejecución como un "huérfano" a eliminar.
-  docker compose -p vorak-edge up -d --no-build --remove-orphans
+  docker compose -p vorak-edge up -d --no-build --remove-orphans --force-recreate
 
   echo "Limpiando imágenes de Docker antiguas (dangling)..."
 
