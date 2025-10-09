@@ -3,9 +3,13 @@
 
 set -e # Salir inmediatamente si un comando falla
 
+sudo touch deploy.log
+sudo chown $(whoami):$(whoami) deploy.log
+
+
+> deploy.log
 
 (
-  sudo rm -f deploy.log && touch deploy.log && sudo chown $(whoami):$(whoami) deploy.log
   echo "Iniciando proceso de ACTUALIZACIÓN Y DESPLIEGUE..."
   echo "Fecha: $(date)"
   echo "----------------------------------------------------"
