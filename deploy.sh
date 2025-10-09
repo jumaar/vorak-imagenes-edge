@@ -31,9 +31,6 @@ exec >> deploy.log 2>&1
       exit 1
   fi
 
-  # 3. Cargar variables de entorno para el login de Docker.
-  export $(grep -v '^#' .env | xargs)
-
   echo "Autenticando en el registro de contenedores (ghcr.io)..."
   if [ -n "$GHCR_USER" ] && [ -n "$GHCR_TOKEN" ]; then
     # Ocultar el token del log por seguridad

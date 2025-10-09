@@ -82,6 +82,10 @@ docker compose -p vorak-edge exec kiosko sh```
 ```bash
 docker compose -p vorak-edge exec nevera sh
 ``` 
+
+** para acceder al contenedor de deployer**
+`docker compose -p vorak-edge run deployer sh`
+
 *Acceder a los logs del despliegue:**
 ```bash
 tail -f deploy.log

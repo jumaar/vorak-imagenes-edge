@@ -238,20 +238,20 @@ def _run_deployment_container():
     logging.info("[Deploy] Iniciando contenedor 'deployer' para la actualización...")
     try:
         # Conectarse al Docker socket montado en el contenedor
+        
         client = docker.from_env()
+            # Obtener el nombre del proyecto de Docker Compose para construir la red
+            # Si no se encuentra, usar 'vorak-edge' como valor por defecto.
+        project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge") # Usar 'vorak-edge' como fallback
+        full_network_name = f"{project_name}_vorak-net"
+        logging.info(f"[Deploy] Conectando el contenedor 'deployer' a la red: {full_network_name}")
 
-        # Lanzar un contenedor efímero (equivalente a 'docker compose run --rm -d')
-        # Usamos la imagen 'docker:cli' que ya tiene git.
-        # El contenedor se eliminará solo al terminar.
         container = client.containers.run(
             image="docker:cli",
             command=["sh", "-c", "./deploy.sh"], # Ejecutamos el script deploy.sh
-            volumes={
-                '/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'},
-                os.getcwd(): {'bind': '/app', 'mode': 'rw'} # os.getcwd() es /app dentro del contenedor
-            },
+            volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}, os.getcwd(): {'bind': '/app', 'mode': 'rw'}},
             working_dir="/app",
-            network="vorak-net", # Conectarse a la misma red para resolver DNS
+            network=full_network_name, # ¡CORREGIDO! Usar el nombre de red completo y dinámico.
             detach=True, # ¡CLAVE! Ejecutar en segundo plano y no esperar.
             auto_remove=True, # ¡CLAVE! Equivalente a --rm.
             environment=dict(os.environ) # Pasa todas las variables de entorno del kiosko
