@@ -14,7 +14,7 @@ WORKDIR /app
 # Copiar el archivo de requerimientos e instalar las dependencias de Python
 # Hacemos esto ANTES de copiar el resto del código para aprovechar la caché de Docker.
 COPY MODULO-NEVERA/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 
 # Copiar el resto del código de la aplicación
 COPY MODULO-NEVERA/app.py .

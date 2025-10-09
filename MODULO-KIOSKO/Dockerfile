@@ -8,21 +8,15 @@ RUN apk add --no-cache git docker-cli docker-compose
 
 # --- ¡SOLUCIÓN! Marcar el directorio del proyecto como seguro para Git ---
 # Esto evita el error "dubious ownership" cuando el contenedor (como root) opera en un volumen montado desde el host (propiedad de otro usuario).
-RUN git config --global --add safe.directory /project
+RUN git config --global --add safe.directory /app
 
 # Establecer el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
 # Copiar el archivo de requisitos e instalar las dependencias
 COPY MODULO-KIOSKO/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
  
-# Copiar el código de la aplicación del módulo kiosko
-COPY MODULO-KIOSKO/ .
-
-
-# Este es necesario para que el webhook de actualización pueda ejecutarlo.
-COPY gitpull.sh .
 
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091

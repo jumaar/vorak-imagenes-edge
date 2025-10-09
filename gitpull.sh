@@ -12,8 +12,6 @@ echo "Disparando el proceso de despliegue..."
 echo "Fecha: $(date)"
 echo "----------------------------------------------------"
 
-# Ejecuta el script de despliegue dentro de un contenedor 'deployer' temporal.
-# --rm asegura que el contenedor se elimine después de la ejecución.
-# -T deshabilita la asignación de un pseudo-TTY, crucial para evitar que el
-# script se "cuelgue" al redirigir la salida a un log.
+# El working_dir ya está configurado en /app en docker-compose.yml
+
 docker compose -p vorak-edge run --rm deployer ./deploy.sh

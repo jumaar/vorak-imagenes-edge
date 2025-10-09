@@ -80,9 +80,9 @@ services:
     volumes:
       # --- ¡NUEVO! Permisos para controlar Docker ---
       - /var/run/docker.sock:/var/run/docker.sock
-      # --- ¡SOLUCIÓN! Montamos el directorio del proyecto para que el kiosko pueda ejecutar git pull en el host.
-      - .:/project
-      # Volumen para la caché de medios y la playlist
+      # --- ¡SOLUCIÓN! Montar el directorio del proyecto para acceder a git y docker-compose.yml ---
+      - .:/app
+       # Volumen para la caché de medios y la playlist
       - kiosk_data:/app/data
       # Volumen compartido para leer el estado de la nevera
       - fridge_status:/app/status
@@ -236,14 +236,13 @@ services:
     # --- ¡NUEVO! ---
     # Este servicio no se ejecuta por defecto, solo se usa como plantilla para 'docker compose run'.
     container_name: vorak-deployer
-    # Montamos el socket de Docker para que pueda gestionar otros contenedores.
+    
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # --- ¡SOLUCIÓN! Montamos el mismo directorio del proyecto para que vea los cambios.
-      - ${PROJECT_PATH:-.}:/project
-    # Cargamos las variables de entorno para que pueda autenticarse en ghcr.io
+      - .:/app
+
     env_file: ./.env
-    working_dir: /project
+    working_dir: /app
     # Aunque este servicio se ejecuta con 'run', es buena práctica definir la red
     # y el DNS para asegurar que pueda resolver dominios como ghcr.io
     networks:
