@@ -73,7 +73,7 @@ services:
       - fridge_status:/app/status
       - kiosk_data:/app/data
   
-    working_dir: /app/MODULO-KIOSKO
+    working_dir: /app # <-- ¡CORRECCIÓN! Alinear el directorio de trabajo con la raíz del proyecto.
   
     networks:
       - vorak-net

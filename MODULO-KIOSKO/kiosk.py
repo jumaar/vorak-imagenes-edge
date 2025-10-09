@@ -240,11 +240,9 @@ def _run_deployment_container():
         project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge")
         command = [
             "docker", "compose",
-            "-f", "/app/docker-compose.yml",
             "-p", project_name,
             "run", "--rm",
-            "deployer",
-            "sh", "-c", "/deploy.sh >> /deploy.log 2>&1"
+            "deployer" # <-- SIMPLIFICACIÓN: El comando a ejecutar ya está en el Dockerfile del deployer.
         ]
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
         # Ejecutamos el comando como una cadena con shell=True para manejar la redirección de logs.

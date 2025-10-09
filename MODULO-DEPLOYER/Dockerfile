@@ -10,3 +10,9 @@ WORKDIR /app
 
 # Copiar todo el contexto de construcción (el directorio del proyecto) a la imagen.
 COPY . .
+
+# Hacer el script ejecutable
+RUN chmod +x deploy.sh
+
+# Comando por defecto que se ejecutará al iniciar el contenedor.
+CMD ["sh", "-c", "./deploy.sh >> deploy.log 2>&1"]
