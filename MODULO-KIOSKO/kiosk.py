@@ -245,8 +245,8 @@ def _run_deployment_container():
             "deployer" # <-- SIMPLIFICACIÓN: El comando a ejecutar ya está en el Dockerfile del deployer.
         ]
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
-        # Ejecutamos el comando como una cadena con shell=True para manejar la redirección de logs.
-        result = subprocess.run(" ".join(command), shell=True, capture_output=True, text=True)
+        # Ejecutamos el comando como una lista de argumentos (shell=False) para evitar errores de parsing.
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
 
         # Verificar si el comando falló y registrar la salida de error.
         if result.returncode != 0:
