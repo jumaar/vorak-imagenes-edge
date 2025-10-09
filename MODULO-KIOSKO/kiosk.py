@@ -5,6 +5,7 @@ import requests
 import subprocess
 import json
 import logging
+import docker # ¡NUEVO! Importamos la librería de Docker
 from flask import Flask, render_template, jsonify, send_from_directory, abort, request
 
 # ==============================================================================
@@ -228,34 +229,36 @@ def serve_media(filename):
     return send_from_directory(CACHE_DIR, filename)
 
 # --- ¡NUEVO! FUNCIÓN TRABAJADORA PARA EL DESPLIEGUE ---
-def _run_deployment_script():
+def _run_deployment_container():
     """
-    Ejecuta el script de redespliegue en segundo plano, espera a que termine
-    y registra el resultado. Esto se ejecuta en un hilo separado para no
+    Lanza el contenedor 'deployer' en modo detached para que ejecute la
+    actualización de forma asíncrona. Esto se ejecuta en un hilo para no
     bloquear la respuesta del webhook.
     """
-    logging.info("[Deploy] Iniciando ejecución de redeploy.sh en segundo plano...")
+    logging.info("[Deploy] Iniciando contenedor 'deployer' para la actualización...")
     try:
-        # Usamos subprocess.run para esperar a que el script termine y capturar su salida.
-        result = subprocess.run(
-            ["./gitpull.sh"], 
-            capture_output=True,
-            text=True,
-            check=False  # No lanzar excepción si falla, lo manejaremos manualmente.
+        # Conectarse al Docker socket montado en el contenedor
+        client = docker.from_env()
+
+        # Lanzar un contenedor efímero (equivalente a 'docker compose run --rm -d')
+        # Usamos la imagen 'docker:cli' que ya tiene git.
+        # El contenedor se eliminará solo al terminar.
+        container = client.containers.run(
+            image="docker:cli",
+            command=["sh", "-c", "./deploy.sh"], # Ejecutamos el script deploy.sh
+            volumes={
+                '/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'},
+                os.getcwd(): {'bind': '/app', 'mode': 'rw'} # os.getcwd() es /app dentro del contenedor
+            },
+            working_dir="/app",
+            network="vorak-net", # Conectarse a la misma red para resolver DNS
+            detach=True, # ¡CLAVE! Ejecutar en segundo plano y no esperar.
+            auto_remove=True, # ¡CLAVE! Equivalente a --rm.
+            environment=dict(os.environ) # Pasa todas las variables de entorno del kiosko
         )
 
-        # Registrar la salida estándar del script para tener el detalle completo.
-        if result.stdout:
-            logging.info(f"[Deploy] Salida del script:\n{result.stdout.strip()}")
+        logging.info(f"✅ [Deploy] Contenedor 'deployer' ({container.short_id}) lanzado en segundo plano para ejecutar la actualización.")
 
-        # Si hubo un error, registrarlo también.
-        if result.stderr:
-            logging.error(f"[Deploy] Errores del script:\n{result.stderr.strip()}")
-
-        if result.returncode == 0:
-            logging.info("✅ [Deploy] El script de redespliegue finalizó con ÉXITO.")
-        else:
-            logging.error(f"❌ [Deploy] El script de redespliegue FALLÓ con código de salida {result.returncode}.")
     except Exception as e:
         logging.critical(f"CRÍTICO: No se pudo ejecutar el hilo de despliegue: {e}")
 
@@ -274,7 +277,7 @@ def handle_webhook(token):
     logging.info("Webhook autorizado recibido. Ejecutando script de redespliegue...")
     try:
         # Creamos y lanzamos el hilo que hará el trabajo pesado.
-        deployment_thread = threading.Thread(target=_run_deployment_script, daemon=True)
+        deployment_thread = threading.Thread(target=_run_deployment_container, daemon=True)
         deployment_thread.start()
         return "Proceso de redespliegue iniciado.", 202 
     except Exception as e:

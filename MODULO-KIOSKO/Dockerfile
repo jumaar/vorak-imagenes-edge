@@ -1,22 +1,37 @@
-# Dockerfile para el servicio kiosko-webapp (solo el servidor Flask)
+# ==============================================================================
+# --- ETAPA 1: BUILDER ---
+# Esta etapa crea un entorno virtual con todas las dependencias de Python.
+# ==============================================================================
+FROM python:3.11-alpine AS builder
+
+# Creamos un directorio para el entorno virtual
+RUN python -m venv /opt/venv
+
+# Hacemos que los comandos 'pip' y 'python' usen el entorno virtual
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copiamos solo el archivo de requisitos e instalamos las dependencias DENTRO del venv
+COPY MODULO-KIOSKO/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ==============================================================================
+# --- ETAPA 2: FINAL ---
+# Esta es la imagen final, súper ligera. Solo copia el entorno virtual
+# y el código de la aplicación. No contiene herramientas de build.
+# ==============================================================================
 FROM python:3.11-alpine
 
-# --- ¡NUEVO! Instalar el cliente de Docker ---
-# Esto es necesario para que el script de redespliegue pueda ejecutar comandos 'docker', 'git' y 'docker compose'.
-# --- ¡SOLUCIÓN! Añadimos 'docker-compose' para instalar el plugin 'compose' v2. ---
-RUN apk add --no-cache git docker-cli docker-compose
-
-# --- ¡SOLUCIÓN! Marcar el directorio del proyecto como seguro para Git ---
-# Esto evita el error "dubious ownership" cuando el contenedor (como root) opera en un volumen montado desde el host (propiedad de otro usuario).
-RUN git config --global --add safe.directory /app
-
-# Establecer el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copiar el archivo de requisitos e instalar las dependencias
-COPY MODULO-KIOSKO/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
- 
+# Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'
+COPY --from=builder /opt/venv /opt/venv
+
+# Copiamos el código de la aplicación.
+# Nota: Esto es opcional si siempre usas un volumen, pero es buena práctica tenerlo.
+COPY MODULO-KIOSKO/ .
+
+# Activamos el entorno virtual para los comandos siguientes
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091

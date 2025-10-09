@@ -43,8 +43,9 @@ docker compose -p vorak-edge --env-file ./.env pull
 
 echo "Redesplegando la pila de servicios con 'docker compose up'..."
 
-# EXCLUYENDO al propio 'deployer' para evitar que intente reiniciarse a sí mismo.
-docker compose -p vorak-edge up -d --no-build --remove-orphans nevera kiosko backup prometheus promtail cadvisor node-exporter
+# Se ejecuta 'up' para toda la pila. Docker Compose es lo suficientemente inteligente
+# para no considerar un contenedor 'run' en ejecución como un "huérfano" a eliminar.
+docker compose -p vorak-edge up -d --no-build --remove-orphans
 
 echo "Limpiando imágenes de Docker antiguas (dangling)..."
 
