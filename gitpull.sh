@@ -16,4 +16,4 @@ echo "----------------------------------------------------"
 # --rm asegura que el contenedor se elimine después de la ejecución.
 # -T deshabilita la asignación de un pseudo-TTY, crucial para evitar que el
 # script se "cuelgue" al redirigir la salida a un log.
-docker compose -p vorak-edge run --rm -T deployer ./deploy.sh
+docker compose -p vorak-edge run --rm deployer ./deploy.sh
