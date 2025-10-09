@@ -237,16 +237,27 @@ def _run_deployment_container():
         # En lugar de crear un contenedor manualmente con la librería de Docker,
         # usamos un subproceso para ejecutar 'docker compose run'.
         # Esto es más simple y utiliza directamente la configuración de docker-compose.yml.
-        project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge")
+        
+        # --- ¡SOLUCIÓN DEFINITIVA! ---
+        # En lugar de usar el flag '-p', que puede causar problemas de parsing,
+        # definimos el nombre del proyecto a través de una variable de entorno.
+        # Este método es más robusto y compatible con todas las versiones de Docker Compose.
+        project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge") # Leemos el nombre del proyecto
+        
+        # Usamos 'docker-compose' con guion para máxima compatibilidad.
         command = [
-            "docker", "compose",
-            "-p", project_name,
+            "docker compose",
             "run", "--rm",
             "deployer" # <-- SIMPLIFICACIÓN: El comando a ejecutar ya está en el Dockerfile del deployer.
         ]
+        
+        # Creamos una copia del entorno actual y añadimos nuestra variable.
+        env = os.environ.copy()
+        env["COMPOSE_PROJECT_NAME"] = project_name
+
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
-        # Ejecutamos el comando como una lista de argumentos (shell=False) para evitar errores de parsing.
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        # Ejecutamos el comando pasando el entorno modificado.
+        result = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
 
         # Verificar si el comando falló y registrar la salida de error.
         if result.returncode != 0:
