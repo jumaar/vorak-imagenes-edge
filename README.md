@@ -151,3 +151,18 @@ docker compose -p vorak-edge down
 # Forzar una actualización manual (mismo proceso que el deployer)
 docker compose -p vorak-edge pull
 docker compose -p vorak-edge up -d --remove-orphans
+
+---
+
+### Comandos de Depuración
+
+Para acceder a una terminal (shell) dentro de un contenedor en ejecución, puedes usar los siguientes comandos. Esto es útil para revisar logs, verificar archivos o ejecutar comandos manualmente.
+
+**Acceder al contenedor del Kiosko:**
+```bash
+docker compose -p vorak-edge exec kiosko sh```
+
+**Acceder al contenedor de la Nevera:**
+```bash
+docker compose -p vorak-edge exec nevera sh
+```
