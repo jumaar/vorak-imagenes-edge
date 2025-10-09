@@ -239,12 +239,15 @@ def _run_deployment_container():
         # Esto es más simple y utiliza directamente la configuración de docker-compose.yml.
         project_name = os.getenv("COMPOSE_PROJECT_NAME", "vorak-edge")
         command = [
-            "/usr/bin/docker-compose","-p",project_name,"run","--rm","deployer","sh","-c","/app/deploy.sh >> /app/deploy.log 2>&1"
+            "docker-compose", # Volvemos al comando simple, ahora que el PATH y python3 están corregidos.
+            "-p", project_name,
+            "run", "--rm",
+            "deployer",
+            "sh", "-c", "/app/deploy.sh >> /app/deploy.log 2>&1"
         ]
         logging.info(f"Ejecutando comando de despliegue: {' '.join(command)}")
-        # Usamos shell=True para que el sistema maneje la redirección y el PATH correctamente.
-        # El comando se pasa como una sola cadena.
-        result = subprocess.run(' '.join(command), shell=True, capture_output=True, text=True)
+        # Ejecutamos el comando como una cadena con shell=True para manejar la redirección de logs.
+        result = subprocess.run(" ".join(command), shell=True, capture_output=True, text=True)
 
         # Verificar si el comando falló y registrar la salida de error.
         if result.returncode != 0:

@@ -38,6 +38,11 @@ COPY MODULO-KIOSKO/ .
 # Activamos el entorno virtual para los comandos siguientes
 ENV PATH="/opt/venv/bin:$PATH"
 
+# --- ¡SOLUCIÓN DEFINITIVA! ---
+# El script 'docker-compose' en Alpine busca 'python3', pero en nuestro venv solo existe 'python'.
+# Creamos un enlace simbólico para que 'python3' apunte a 'python' dentro del entorno virtual.
+RUN ln -s /opt/venv/bin/python /opt/venv/bin/python3
+
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091
 
