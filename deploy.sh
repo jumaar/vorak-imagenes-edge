@@ -3,14 +3,10 @@
 
 set -e # Salir inmediatamente si un comando falla
 
-# --- ¡MEJORA! ---
-# Eliminar el log anterior para empezar de cero en cada despliegue.
-rm -f deploy.log
 
-# Redirigir toda la salida (stdout y stderr) de este bloque de código al archivo deploy.log
-exec >> deploy.log 2>&1
+> deploy.log
 
-{
+(
   echo "----------------------------------------------------"
   echo "Iniciando proceso de ACTUALIZACIÓN Y DESPLIEGUE..."
   echo "Fecha: $(date)"
@@ -52,4 +48,4 @@ exec >> deploy.log 2>&1
   docker image prune -f
 
   echo "✅ Proceso de despliegue finalizado. Los servicios han sido actualizados."
-}
+) >> deploy.log 2>&1
