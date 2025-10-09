@@ -29,6 +29,13 @@ sudo chown $(whoami):$(whoami) deploy.log
       exit 1
   fi
 
+  # 3. Cargar las variables de entorno desde el archivo .env
+  echo "Cargando variables de entorno desde .env..."
+  # Usamos 'set -a' para exportar las variables y que estén disponibles
+  # para los subprocesos (como docker login). 'set +a' revierte el comportamiento.
+  set -a
+  . ./.env
+  set +a
   echo "Autenticando en el registro de contenedores (ghcr.io)..."
   if [ -n "$GHCR_USER" ] && [ -n "$GHCR_TOKEN" ]; then
     # Ocultar el token del log por seguridad
@@ -43,7 +50,7 @@ sudo chown $(whoami):$(whoami) deploy.log
 
   echo "Redesplegando la pila de servicios con 'docker compose up'..."
 
-  docker compose -p vorak-edge up -d --no-build --remove-orphans --force-recreate
+  docker compose -p vorak-edge --env-file ./.env up -d --no-build --remove-orphans --force-recreate
 
   echo "Limpiando imágenes de Docker antiguas (dangling)..."
 
