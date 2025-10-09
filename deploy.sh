@@ -46,7 +46,7 @@ echo "Redesplegando la pila de servicios con 'docker compose up'..."
 # EXCLUYENDO al propio 'deployer' para evitar que intente reiniciarse a sí mismo.
 # --- ¡CORRECCIÓN! ---
 # Se reconstruyen las imágenes (--build) para aplicar cualquier cambio en los Dockerfiles.
-docker compose -p vorak-edge up -d --build --remove-orphans nevera kiosko backup prometheus promtail cadvisor node-exporter
+docker compose -p vorak-edge up -d --no-build --remove-orphans nevera kiosko backup prometheus promtail cadvisor node-exporter
 
 echo "Limpiando imágenes de Docker antiguas (dangling)..."
 # El comando 'docker image prune' elimina las imágenes que no están asociadas a ningún contenedor.

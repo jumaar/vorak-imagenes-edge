@@ -166,3 +166,29 @@ docker compose -p vorak-edge exec kiosko sh```
 ```bash
 docker compose -p vorak-edge exec nevera sh
 ```
+
+---
+
+## 6. Troubleshooting y Depuración
+
+Esta sección documenta problemas comunes encontrados durante el despliegue y sus soluciones.
+
+### 6.1. Error de `git`: "permisos insuficientes"
+
+-   **Síntoma**: Al intentar actualizar el repositorio (manual o automáticamente), aparece el error `error: insufficient permissions to add object to repository database .git/objects`.
+-   **Causa**: El problema se debe a un conflicto de propiedad de archivos dentro del directorio `.git`. Generalmente ocurre si en algún momento se ejecutó un comando `git` con `sudo`, haciendo que `root` se convierta en el propietario de algunos archivos internos del repositorio.
+-   **Solución**: Ejecutar el siguiente comando en la terminal del host para reclamar la propiedad de todo el contenido del directorio `.git`. Esto debe hacerse una sola vez.
+
+    ```bash
+    sudo chown -R $(whoami):$(whoami) .git
+    ```
+
+### 6.2. El despliegue automático falla con `fatal: not a git repository`
+
+-   **Síntoma**: El webhook se activa, pero el despliegue falla y los logs del `kiosko` muestran un error indicando que no se encuentra un repositorio de Git.
+-   **Causa**: El contenedor `kiosko` intenta ejecutar comandos de `git` en su propio sistema de archivos (`/app`), en lugar de hacerlo en el volumen donde está montado el repositorio real del host (`/project`).
+-   **Solución**: La arquitectura de despliegue se ha reestructurado para separar responsabilidades:
+    1.  El `kiosko` solo recibe el webhook y ejecuta `gitpull.sh`.
+    2.  `gitpull.sh` actúa como un simple disparador que lanza el contenedor `deployer`.
+    3.  El contenedor `deployer` ejecuta `deploy.sh`, que ahora contiene toda la lógica: actualiza el código con `git` y redespliega los servicios con `docker compose`.
+    4.  Para evitar problemas de permisos entre el contenedor y el host, el servicio `deployer` en `docker-compose.yml` está configurado con `user: "UID:GID"` para que coincida con el usuario del host.
