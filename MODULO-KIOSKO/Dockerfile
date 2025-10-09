@@ -21,9 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY MODULO-KIOSKO/ .
 
 
-# Estos son necesarios para que el webhook de actualización pueda ejecutarlos.
+# Este es necesario para que el webhook de actualización pueda ejecutarlo.
 COPY gitpull.sh .
-COPY deploy.sh .
 
 # Exponer el puerto en el que Gunicorn escuchará
 EXPOSE 5000 9091

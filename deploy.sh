@@ -1,14 +1,23 @@
-# --- Script para redesplegar la aplicación con Docker Compose ---
-# Este script asume que 'git pull' ya se ha ejecutado.
+# --- Script UNIFICADO para actualizar y redesplegar la aplicación ---
+# Este script se ejecuta dentro del contenedor 'deployer' y lo hace TODO.
 
 set -e # Salir inmediatamente si un comando falla
 
 echo "----------------------------------------------------"
-echo "Iniciando proceso de despliegue con Docker Compose..."
+echo "Iniciando proceso de ACTUALIZACIÓN Y DESPLIEGUE..."
 echo "Fecha: $(date)"
 echo "----------------------------------------------------"
 
-cd "$(dirname "$0")"
+# El working_dir del deployer ya es /project, pero lo aseguramos.
+cd /project
+
+# 1. ACTUALIZAR CÓDIGO FUENTE DESDE GIT
+echo "Forzando actualización desde github (origin/main)..."
+# Le decimos a Git que el directorio del proyecto es seguro.
+git config --global --add safe.directory /project
+git fetch origin main
+git reset --hard origin/main
+echo "✅ Código fuente actualizado."
 
 # 2. Verificar que el archivo .env exista.
 echo "Verificando la existencia del archivo .env..."
@@ -35,7 +44,9 @@ docker compose -p vorak-edge --env-file ./.env pull
 echo "Redesplegando la pila de servicios con 'docker compose up'..."
 
 # EXCLUYENDO al propio 'deployer' para evitar que intente reiniciarse a sí mismo.
-docker compose -p vorak-edge up -d --no-build --remove-orphans nevera kiosko backup prometheus promtail cadvisor node-exporter
+# --- ¡CORRECCIÓN! ---
+# Se reconstruyen las imágenes (--build) para aplicar cualquier cambio en los Dockerfiles.
+docker compose -p vorak-edge up -d --build --remove-orphans nevera kiosko backup prometheus promtail cadvisor node-exporter
 
 echo "Limpiando imágenes de Docker antiguas (dangling)..."
 # El comando 'docker image prune' elimina las imágenes que no están asociadas a ningún contenedor.
