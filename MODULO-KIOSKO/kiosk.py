@@ -5,7 +5,6 @@ import requests
 import subprocess
 import json
 import logging
-import docker # ¡NUEVO! Importamos la librería de Docker
 from flask import Flask, render_template, jsonify, send_from_directory, abort, request
 
 # ==============================================================================
