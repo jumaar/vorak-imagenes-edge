@@ -12,8 +12,10 @@ PROJECT_NAME=${COMPOSE_PROJECT_NAME:-vorak-edge}
 
 echo "[Deploy Script] Usando el nombre de proyecto: ${PROJECT_NAME}"
 
-# Ejecutamos el comando 'docker-compose run'. Usamos 'docker-compose' con guion para máxima compatibilidad.
-# El flag '--rm' asegura que el contenedor se elimine después de ejecutar su tarea.
-docker-compose -p "${PROJECT_NAME}" run --rm deployer
+# --- ¡MEJORA! ---
+# Ejecutamos el comando 'docker compose run' en modo 'detached' (-d).
+# Esto inicia el contenedor 'deployer' en segundo plano y devuelve el control inmediatamente.
+# El kiosko no tiene que esperar a que todo el despliegue termine.
+docker compose -p "${PROJECT_NAME}" run -d --rm deployer
 
-echo "[Deploy Script] El comando 'docker-compose run' se ha completado."
+echo "[Deploy Script] El contenedor 'deployer' ha sido lanzado en segundo plano para realizar la actualización."
