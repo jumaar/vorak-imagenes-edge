@@ -1,7 +1,8 @@
-# Usamos la imagen oficial de Docker que incluye el CLI moderno y el plugin Compose v2
-FROM docker:latest
+# Usamos una imagen que SOLO contiene el cliente de Docker, no el motor.
+# Esto es más ligero y seguro para nuestro caso de uso.
+FROM docker:25-cli
 
-# El procedimiento para instalar git sigue siendo el mismo
+# El resto del archivo no cambia.
 RUN apk update && apk add --no-cache git
 
 WORKDIR /app
