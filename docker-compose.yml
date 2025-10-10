@@ -231,14 +231,14 @@ services:
     image: ghcr.io/jumaar/vorak-imagenes-edge/deployer:latest
     container_name: vorak-deployer
     
+    env_file: ./.env
+    
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/app
-
-    env_file: ./.env
-
-    working_dir: /app
-
+      - ${PWD}:${PWD}
+    
+    working_dir: ${PWD}
+    
     networks:
       - vorak-net
 
