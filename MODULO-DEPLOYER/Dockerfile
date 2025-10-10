@@ -10,10 +10,7 @@ RUN apk add --no-cache git
 # Establecer el directorio de trabajo por defecto.
 WORKDIR /app
 
-# Copiamos el script de despliegue a la imagen.
-COPY ./deploy.sh .
-# Nos aseguramos de que tenga permisos de ejecución.
-RUN chmod +x ./deploy.sh
-
 # Comando por defecto que se ejecutará al iniciar el contenedor.
+# Este script será el que está montado desde el host a través del volumen '.:/app'.
+# El propio script 'deploy.sh' se encarga de gestionar los permisos de otros scripts.
 CMD ["./deploy.sh"]
