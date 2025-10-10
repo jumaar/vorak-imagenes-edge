@@ -74,8 +74,11 @@ jobs:
           elif [ "$SERVICE_NAME" = "promtail" ]; then
             echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-MONITORING/promtail.Dockerfile" >> $GITHUB_OUTPUT
+          # --- ¡CORRECCIÓN! ---
+          # El contexto de build para el deployer debe ser la raíz del proyecto ('.')
+          # para que el Dockerfile pueda encontrar el script 'deploy.sh' que está en la raíz.
           elif [ "$SERVICE_NAME" = "deployer" ]; then
-            echo "build_context=./MODULO-DEPLOYER" >> $GITHUB_OUTPUT
+            echo "build_context=." >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-DEPLOYER/Dockerfile" >> $GITHUB_OUTPUT
           fi
 
