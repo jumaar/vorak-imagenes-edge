@@ -16,6 +16,13 @@ git fetch origin main
 git reset --hard origin/main
 echo "✅ Código fuente actualizado."
 
+# --- ¡CORRECCIÓN DE PERMISOS! ---
+# Aseguramos que los scripts de shell tengan permisos de ejecución DESPUÉS de hacer git reset.
+# Esto es crucial porque 'git reset --hard' puede eliminar los permisos locales si no están en Git.
+echo "Asegurando permisos de ejecución para los scripts..."
+chmod +x ./MODULO-KIOSKO/entrypoint.sh
+chmod +x ./MODULO-KIOSKO/run_deployer.sh
+
 # 2. Verificar que el archivo .env exista.
 echo "Verificando la existencia del archivo .env..."
 if [ ! -f ".env" ]; then
