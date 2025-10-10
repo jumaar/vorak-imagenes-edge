@@ -5,7 +5,9 @@ FROM docker/compose:latest
 
 # Instalar git, que es necesario para que deploy.sh pueda hacer 'git pull'.
 # La imagen docker/compose está basada en Alpine, por lo que usamos 'apk'.
-RUN apk add --no-cache git
+RUN apk update && \
+    apk add --no-cache git && \
+    rm -rf /var/cache/apk/*
 
 # Establecer el directorio de trabajo por defecto.
 WORKDIR /app
