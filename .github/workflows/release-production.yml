@@ -1,11 +1,9 @@
-# .github/workflows/ci-cd.yml
+# .github/workflows/release-production.yml
 
-name: CI/CD - GitOps for IoT Fleet
+name: CI/CD - Release to Production
 
 on:
   push:
-    branches:
-      - develop
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -16,59 +14,10 @@ env:
 
 jobs:
   # =================================================================================
-  # JOB 1: Construye y publica imágenes para la rama 'develop' (etiquetadas con SHA)
-  # =================================================================================
-  build-and-push-develop:
-    name: Build and Push (develop)
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        service: [nevera, kiosko, prometheus, promtail]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/vorak-imagenes-edge/${{ matrix.service }}
-          tags: type=sha,format=short
-      - name: Set build paths based on service
-        id: paths
-        run: |
-          SERVICE_NAME=${{ matrix.service }}
-          if [ "$SERVICE_NAME" = "nevera" ]; then echo "build_context=." >> $GITHUB_OUTPUT && echo "dockerfile_path=./MODULO-NEVERA/Dockerfile" >> $GITHUB_OUTPUT;
-          elif [ "$SERVICE_NAME" = "kiosko" ]; then echo "build_context=." >> $GITHUB_OUTPUT && echo "dockerfile_path=./MODULO-KIOSKO/Dockerfile" >> $GITHUB_OUTPUT;
-          elif [ "$SERVICE_NAME" = "prometheus" ]; then echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT && echo "dockerfile_path=./MODULO-MONITORING/prometheus.Dockerfile" >> $GITHUB_OUTPUT;
-          elif [ "$SERVICE_NAME" = "promtail" ]; then echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT && echo "dockerfile_path=./MODULO-MONITORING/promtail.Dockerfile" >> $GITHUB_OUTPUT;
-          fi
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ steps.paths.outputs.build_context }}
-          file: ${{ steps.paths.outputs.dockerfile_path }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  # =================================================================================
-  # JOB 2: Construye y publica imágenes para Producción (etiquetadas con Git Tag)
+  # JOB 1: Construye y publica imágenes para Producción (etiquetadas con Git Tag)
   # =================================================================================
   build-and-push-production:
     name: Build and Push (Production)
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -112,11 +61,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   # =================================================================================
-  # JOB 3: Prepara la matriz de despliegue a partir del inventario
+  # JOB 2: Prepara la matriz de despliegue a partir del inventario
   # =================================================================================
   prepare-deployment-matrix:
     name: Prepare Deployment Matrix
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     outputs:
       hosts: ${{ steps.set-matrix.outputs.hosts }}
@@ -127,14 +75,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
       - name: Create matrix from inventory
         id: set-matrix
-        run: echo "hosts=$(jq -c '.devices' fleet-inventory.json)" >> $GITHUB_OUTPUT
+        run: echo "hosts=$(jq -c '.devices' .github/workflows/fleet-inventory.json)" >> $GITHUB_OUTPUT
 
   # =================================================================================
-  # JOB 4: Despliega en la flota de dispositivos IoT de forma secuencial
+  # JOB 3: Despliega en la flota de dispositivos IoT de forma secuencial
   # =================================================================================
   deploy-to-production:
     name: Deploy to Production Fleet
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-and-push-production, prepare-deployment-matrix]
     runs-on: ubuntu-latest
     strategy:
@@ -153,7 +100,7 @@ jobs:
           key: ${{ secrets.IOT_PRIVATE_KEY }}
           script: |
             echo "--- Iniciando despliegue en ${{ matrix.host }} con tag ${{ github.ref_name }} ---"
-            cd /home/jumaar/Escritorio/GITHUB\ jumaar/vorak-imagenes-edge
+            cd /home/${{ secrets.IOT_USERNAME }}/vorak-imagenes-edge
             export IMAGE_TAG=${{ github.ref_name }}
             ./deploy.sh
             echo "--- Despliegue completado en ${{ matrix.host }} ---"
