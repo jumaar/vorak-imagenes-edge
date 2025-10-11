@@ -97,6 +97,11 @@ jobs:
           wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
           sudo chmod +x /usr/local/bin/cloudflared
+      - name: Install Cloudflared
+        run: |
+          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
       - name: Configure SSH for Cloudflare Tunnel
         run: |
           mkdir -p ~/.ssh
@@ -109,6 +114,7 @@ jobs:
           host: ${{ matrix.host }}
           username: ${{ secrets.IOT_USERNAME }}
           key: ${{ secrets.IOT_PRIVATE_KEY }}
+          passphrase: ${{ secrets.IOT_PASSPHRASE }}
           script: |
             echo "--- Iniciando despliegue en ${{ matrix.host }} con tag ${{ github.ref_name }} ---"
             cd /home/${{ secrets.IOT_USERNAME }}/vorak-imagenes-edge
