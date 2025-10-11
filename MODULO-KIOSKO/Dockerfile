@@ -18,7 +18,7 @@ WORKDIR /app
 
 # Crear un usuario no-root para mejorar la seguridad
 RUN useradd --create-home appuser && \
-    mkdir -p /app/status && \
+    mkdir -p /app/status /app/data && \
     chown -R appuser:appuser /app
 USER appuser
 
