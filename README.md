@@ -94,3 +94,24 @@ docker compose -p vorak-edge exec nevera sh
 tail -f deploy.log
 ```
 ---
+
+## Próximos Pasos (Flujo de Trabajo)
+
+1.  **Desarrollo de Nuevas Funcionalidades**:
+    - Crea nuevas ramas a partir de `develop` para cada nueva funcionalidad:
+      ```bash
+      git checkout develop
+      git pull origin develop
+      git checkout -b feature/nombre-de-la-funcionalidad
+      ```
+    - Una vez completado el desarrollo, fusiona la rama de funcionalidad de nuevo en `develop`.
+
+2.  **Lanzamiento a Producción**:
+    - Fusiona la rama `develop` en `main`.
+    - Crea un nuevo tag de Git para versionar el lanzamiento:
+      ```bash
+      git tag v1.0.1
+      git push origin v1.0.1
+      ```
+
+Este sistema proporciona un control de versiones robusto, despliegues consistentes y un proceso automatizado para la gestión de tu flota de dispositivos IoT.
