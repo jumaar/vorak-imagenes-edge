@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: ./MODULO-NEVERA/Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:latest 
+    image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:${IMAGE_TAG:-latest}
     container_name: vorak-nevera
     restart: unless-stopped
     
@@ -57,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: ./MODULO-KIOSKO/Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:latest 
+    image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:${IMAGE_TAG:-latest}
     container_name: vorak-kiosko
     restart: unless-stopped
   
@@ -115,7 +115,7 @@ services:
     build:
       context: ./MODULO-MONITORING
       dockerfile: prometheus.Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/prometheus:latest
+    image: ghcr.io/jumaar/vorak-imagenes-edge/prometheus:${IMAGE_TAG:-latest}
     container_name: vorak-prometheus
 
     ports:
@@ -142,7 +142,7 @@ services:
     build:
       context: ./MODULO-MONITORING
       dockerfile: promtail.Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/promtail:latest
+    image: ghcr.io/jumaar/vorak-imagenes-edge/promtail:${IMAGE_TAG:-latest}
     container_name: vorak-promtail
     
     env_file: ./.env
