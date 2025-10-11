@@ -1,61 +1,32 @@
-# ==============================================================================
-# --- ETAPA 1: BUILDER ---
-# Esta etapa crea un entorno virtual aislado con todas las dependencias de Python.
-# El resultado es una carpeta /opt/venv que se copiará a la etapa final.
-# ==============================================================================
-FROM python:3.11-alpine AS builder
 
-# Establecemos el directorio de trabajo
+FROM python:3.10-slim as builder
+
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Creamos el entorno virtual dentro del directorio de trabajo
-RUN python -m venv /opt/venv
-
-# Activamos el entorno virtual para los comandos siguientes
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Copiamos solo el archivo de requisitos para aprovechar la caché de Docker
-COPY ./MODULO-KIOSKO/requirements.txt .
+# Copiar el archivo de requerimientos e instalar las dependencias
+# Esto aprovecha el cache de capas de Docker: solo se reinstalará si requirements.txt cambia.
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ==============================================================================
-# --- ETAPA 2: FINAL ---
-# Esta es la imagen final, optimizada para ser ligera y segura.
-# No contiene herramientas de compilación, solo lo necesario para ejecutar la aplicación.
-# ==============================================================================
-FROM python:3.11-alpine
+# --- Fase 2: Final ---
+# Usamos una imagen "slim" que es más ligera para la ejecución final.
+FROM python:3.10-slim
 
-WORKDIR /app/MODULO-KIOSKO
+# Establecer el directorio de trabajo
+WORKDIR /app
 
-# --- ¡MEJORA! ---
-# Instalamos tanto 'docker' (el cliente) como 'docker-compose' (el plugin, necesario para run_deployer.sh).
-# Usamos --no-cache para no guardar el índice de paquetes y limpiamos la caché al final.
-RUN apk update && \
-    apk add --no-cache docker docker-compose && \
-    rm -rf /var/cache/apk/*
+# Crear un usuario no-root para mejorar la seguridad
+RUN useradd --create-home appuser
+USER appuser
 
-# Copiamos el entorno virtual con las dependencias ya instaladas desde la etapa 'builder'.
-COPY --from=builder /opt/venv /opt/venv
+# Copiar las dependencias instaladas desde la fase de 'builder'
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copiamos el código de la aplicación.
-COPY ./MODULO-KIOSKO/ .
-# --- ¡SOLUCIÓN DEFINITIVA! ---
-# Damos permisos de ejecución a nuestros scripts de shell.
-RUN chmod +x ./run_deployer.sh ./entrypoint.sh
+COPY --chown=appuser:appuser . .
 
-# Activamos el entorno virtual para los comandos siguientes
-ENV PATH="/opt/venv/bin:$PATH"
+# Exponer el puerto que usará Gunicorn
+EXPOSE 5000
 
-# Creamos un enlace simbólico para que 'python3' apunte a 'python' dentro del entorno virtual.
-RUN ln -sf /opt/venv/bin/python /opt/venv/bin/python3
- 
-# Exponer el puerto en el que Gunicorn escuchará
-EXPOSE 5000 9091
-
-# Establecemos nuestro script como el punto de entrada.
-# Se ejecutará cada vez que el contenedor inicie.
-ENTRYPOINT ["./entrypoint.sh"]
-
-# Comando para iniciar Gunicorn
-# Gunicorn buscará la aplicación 'app' dentro del módulo 'kiosk.py'
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "kiosk:app"]
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "kiosk:app"]

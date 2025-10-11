@@ -27,10 +27,8 @@ jobs:
       actions: write # Permiso para escribir en la caché de GitHub Actions
 
     strategy:
-      # Ejecuta un trabajo para cada servicio en paralelo
       matrix:
-        # --- ¡MEJORA! --- Añadimos el nuevo servicio 'deployer' a la matriz de construcción.
-        service: [nevera, kiosko, prometheus, promtail, deployer]
+        service: [nevera, kiosko, prometheus, promtail]
 
     steps:
       - name: Checkout repository
@@ -74,12 +72,6 @@ jobs:
           elif [ "$SERVICE_NAME" = "promtail" ]; then
             echo "build_context=./MODULO-MONITORING" >> $GITHUB_OUTPUT
             echo "dockerfile_path=./MODULO-MONITORING/promtail.Dockerfile" >> $GITHUB_OUTPUT
-          # --- ¡CORRECCIÓN! ---
-          # El contexto de build para el deployer debe ser la raíz del proyecto ('.')
-          # para que el Dockerfile pueda encontrar el script 'deploy.sh' que está en la raíz.
-          elif [ "$SERVICE_NAME" = "deployer" ]; then
-            echo "build_context=." >> $GITHUB_OUTPUT
-            echo "dockerfile_path=./MODULO-DEPLOYER/Dockerfile" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push Docker image
@@ -92,35 +84,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  # ===============================================================
-  # JOB 2: Despliega la aplicación usando el webhook
-  # ===============================================================
-  deploy:
-    name: Deploy via Webhook
-    runs-on: ubuntu-latest
-    needs: build-and-push # Se ejecuta solo si el job anterior fue exitoso
-
-    steps:
-      - name: Trigger Redeployment via Kiosk Webhook
-        run: |
-          echo "🚀 Triggering redeployment..."
-          # Hacemos la petición y guardamos el código de estado HTTP y la salida.
-          # -f: Falla si el código de estado es >= 400.
-          # -s: Modo silencioso (no muestra barra de progreso).
-          # -S: Muestra errores si -s está activado.
-          # -w "%{http_code}": Escribe el código de estado en stdout.
-          # --output response.txt: Guarda el cuerpo de la respuesta en un archivo.
-          HTTP_STATUS=$(curl -f -sS -w "%{http_code}" \
-            -X POST "https://nevera1.lenstextil.com/update/${{ secrets.FRIDGE_SECRET }}" \
-            --output response.txt)
-
-          echo "📄 Server response:"
-          cat response.txt
-
-          # Verificamos si el código de estado es el esperado (202).
-          if [ "$HTTP_STATUS" -eq 202 ]; then
-            echo "✅ Deployment successfully triggered (HTTP $HTTP_STATUS)."
-          else
-            echo "❌ Deployment trigger failed with HTTP status $HTTP_STATUS."
-            exit 1
-          fi

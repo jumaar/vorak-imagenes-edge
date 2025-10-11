@@ -42,19 +42,12 @@ El sistema se orquesta a través de `docker-compose.yml`, que define y conecta l
 
 ### 2. Servicio `kiosko`
 
-- **Propósito Dual:**
-    1.  **Interfaz de Usuario:** Sirve la aplicación web (HTML, CSS, JS) a la que accede el navegador del dispositivo físico.
-    2.  **Orquestador de Despliegue:** Actúa como el cerebro del proceso de CI/CD, recibiendo notificaciones (webhooks) para actualizar todo el stack de la aplicación de forma automática.
+- **Propósito:**
+    - **Interfaz de Usuario:** Sirve la aplicación web (HTML, CSS, JS) a la que accede el navegador del dispositivo físico para mostrar la publicidad y la información del producto.
 
 - **Componentes Clave:**
-    - **`Dockerfile`:** Construye una imagen Python ligera (basada en Alpine) que incluye el cliente de Docker (`docker-cli`). Esto es fundamental para que el contenedor pueda interactuar con el Docker socket del host y gestionar otros contenedores.
-    - **`kiosk.py`:** Un servidor web Flask que cumple dos funciones críticas:
-        1.  **APIs para la UI:** Proporciona endpoints para que el frontend consulte datos dinámicos, como la playlist de medios o el estado actual de la nevera (leyendo `fridge_status.json` del volumen compartido).
-        2.  **Webhook de Despliegue (`/update/<secret>`):** Expone un endpoint seguro que, al ser llamado por el pipeline de CI/CD (GitHub Actions), inicia el proceso de actualización. Verifica un secreto compartido para prevenir ejecuciones no autorizadas.
-    - **`redeploy.sh` (Internalizado en la imagen):** Este script contiene la lógica para redesplegar los servicios. Es ejecutado por `kiosk.py` al recibir un webhook válido. Sus tareas son:
-        1.  Autenticarse en el registro de contenedores (`ghcr.io`) usando credenciales seguras.
-        2.  Ejecutar `docker-compose up -d --pull` para descargar las nuevas versiones de las imágenes y actualizar los servicios correspondientes.
-    - **`manage-secrets.sh`:** Un script de utilidad, también dentro de la imagen, que podría usarse para gestionar la creación o actualización de secretos de Docker si fuera necesario.
+    - **`Dockerfile`:** Construye una imagen Python ligera (basada en `python:3.10-slim`) para ejecutar el servidor web de forma eficiente.
+    - **`kiosk.py`:** Un servidor web Flask que proporciona las APIs necesarias para que el frontend consulte datos dinámicos, como la playlist de medios o el estado actual de la nevera (leyendo `fridge_status.json` del volumen compartido).
 
 ### 3. Conexión con el Entorno Gráfico del Host
 

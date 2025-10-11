@@ -63,17 +63,12 @@ services:
   
     ports:
       - "5000:5000"
-      - "9091:5000"
   
     env_file: ./.env
   
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - .:/app
       - fridge_status:/app/status
       - kiosk_data:/app/data
-  
-    working_dir: /app/MODULO-KIOSKO
   
     networks:
       - vorak-net
@@ -82,8 +77,6 @@ services:
       - 8.8.8.8
       - 1.1.1.1
   
-    group_add:
-      - "${DOCKER_GID:-$(stat -c '%g' /var/run/docker.sock)}"
   #--------------------------------------------------------------------------
   # SERVICIO 'BACKUP' - Realiza copias de seguridad periódicas
   #--------------------------------------------------------------------------
@@ -215,36 +208,3 @@ services:
       - 8.8.8.8
       - 1.1.1.1
 
-
-  #--------------------------------------------------------------------------
-  # SERVICIO 'DEPLOYER' - Contenedor de utilidad para el redespliegue
-  #--------------------------------------------------------------------------
-  deployer:    
-    
-    build:
-      context: .
-      dockerfile: ./MODULO-DEPLOYER/Dockerfile
-
-    profiles:
-      - tools
-
-    image: ghcr.io/jumaar/vorak-imagenes-edge/deployer:latest
-    container_name: vorak-deployer
-    
-    env_file: ./.env
-    
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}:${PWD}
-    
-    working_dir: ${PWD}
-    
-    networks:
-      - vorak-net
-
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-      
-    group_add:
-      - "${DOCKER_GID:-$(stat -c '%g' /var/run/docker.sock)}"
