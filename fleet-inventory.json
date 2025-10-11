@@ -1,7 +1,5 @@
 {
   "devices": [
-    "iot0001.mi-red.com",
-    "iot0002.mi-red.com",
-    "iot0003.mi-red.com"
+    "ssh-nevera1.lenstextil.com"
   ]
 }
