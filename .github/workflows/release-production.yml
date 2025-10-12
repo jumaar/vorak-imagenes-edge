@@ -118,18 +118,22 @@ jobs:
         env:
           SSH_PASSPHRASE: ${{ secrets.IOT_PASSPHRASE }}
         run: |
-          # Create a helper script for ssh-add to provide the passphrase
           echo 'echo "$SSH_PASSPHRASE"' > askpass.sh
           chmod +x askpass.sh
 
-          # Start ssh-agent and add the key non-interactively
           eval $(ssh-agent -s)
           DISPLAY=:0 SSH_ASKPASS=./askpass.sh ssh-add ~/.ssh/id_rsa
 
-          # Execute the remote deployment script
           ssh -o StrictHostKeyChecking=no ${{ secrets.IOT_USERNAME }}@${{ matrix.host }} << 'EOF'
             echo "--- Iniciando despliegue en ${{ matrix.host }} con tag ${{ github.ref_name }} ---"
+            
             cd /home/${{ secrets.IOT_USERNAME }}/vorak-imagenes-edge
+            
+            echo "Actualizando paquetes del sistema operativo..."
+            sudo apt-get update
+            sudo apt-get upgrade -y
+            echo "✅ Sistema operativo actualizado."
+            
             export IMAGE_TAG=${{ github.ref_name }}
             
             set -e 
@@ -143,8 +147,15 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             echo "✅ Código fuente actualizado."
-
+            
+            echo "Asegurando permisos de ejecución para el script de despliegue..."
+            chmod +x deploy.sh
+            
             ./deploy.sh
             
             echo "--- Despliegue completado en ${{ matrix.host }} ---"
+            echo "Iniciando reinicio en segundo plano..."
+            
+            (sleep 5 && sudo reboot) &
+            
           EOF
