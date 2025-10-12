@@ -4,7 +4,7 @@ Este repositorio contiene la infraestructura y el código para el sistema de nev
 
 ## Arquitectura Modular
 
-El sistema se compone de los siguientes servicios Docker: `nevera`, `kiosko`, `backup`, `monitoring` (Prometheus, Promtail, etc.) y `deployer`.
+El sistema se compone de los siguientes servicios Docker: `nevera`, `kiosko`, `backup`, `monitoring` (Prometheus, Promtail, node-exporter) y `backup`.
 
 ---
 
@@ -14,8 +14,8 @@ El sistema se compone de los siguientes servicios Docker: `nevera`, `kiosko`, `b
 
 2.  **Clonar el repositorio**:
     ```bash
-    git clone <URL_DEL_REPOSITORIO> /ruta/de/instalacion
-    cd /ruta/de/instalacion
+    `git clone https://github.com/jumaar/vorak-imagenes-edge.git
+    `cd vorak-imagenes-edge`
     ```
 
 3.  **Autenticarse en el registro de Docker**:
@@ -34,12 +34,58 @@ El sistema se compone de los siguientes servicios Docker: `nevera`, `kiosko`, `b
 5.  **Desplegar la aplicación**:
     ```bash
     # El flag -p define un nombre de proyecto para evitar conflictos.
-    docker compose -p vorak-edge up -d
+    `docker compose -p vorak-edge up -d`
     ```
 
 ---
+---
 
-## 2. Comandos de Gestión
+---
+
+## Apéndice A: Solución de Problemas de Conexión SSH
+
+Esta sección sirve como referencia rápida si los despliegues automáticos fallan por problemas de autenticación SSH. Dado que los dispositivos se clonarán, esta configuración solo debería necesitarse una vez.
+
+### Puntos Clave de la Configuración
+
+1.  **Clave Pública vs. Privada**:
+    -   La **Clave Pública** (`~/.ssh/id_ed25519.pub`) es la "cerradura". Se instala en el dispositivo IoT, dentro del archivo `~/.ssh/authorized_keys` del usuario de despliegue (ej: `nevera1`).
+    -   La **Clave Privada** (`~/.ssh/id_ed25519`) es la "llave". Debe ser secreta y su contenido se copia en el secreto `IOT_PRIVATE_KEY` de GitHub.
+
+2.  **Secretos de GitHub (`Settings > Secrets and variables > Actions`)**:
+    -   `IOT_USERNAME`: Usuario para el despliegue (ej: `nevera1`).
+    -   `IOT_PRIVATE_KEY`: Contenido completo de la clave **privada**, incluyendo `-----BEGIN...` y `-----END...`.
+    -   `IOT_PASSPHRASE`: La contraseña de la clave privada, si tiene una.
+
+3.  **Permisos en el Dispositivo IoT**:
+    Los permisos incorrectos son una causa común de fallos. El directorio `.ssh` y su contenido deben ser privados para el usuario.
+    ```bash
+    # Ejecutar como el usuario de despliegue (ej: nevera1) en el dispositivo
+    chmod 700 ~/.ssh
+    chmod 600 ~/.ssh/authorized_keys
+    ```
+
+### Diagnóstico Rápido de Errores Comunes
+
+-   **`ssh: no key found`**: El contenido del secreto `IOT_PRIVATE_KEY` es incorrecto. Asegúrate de que sea la clave **privada** completa.
+-   **`ssh: this private key is passphrase protected`**: La clave privada tiene contraseña. Asegúrate de que el secreto `IOT_PASSPHRASE` exista y contenga la contraseña correcta.
+-   **`i/o timeout`**: Problema de red. En nuestro caso, se solucionó configurando el workflow para usar el túnel de Cloudflare (`cloudflared`).
+-   **`Permission denied (publickey)`**: La clave pública no está correctamente añadida en `authorized_keys` en el dispositivo, o los permisos de los archivos/directorios `.ssh` son incorrectos.
+
+---
+
+## 3. Comandos de Gestión
+### Conexión SSH Directa
+```bash
+ssh nevera1@ssh-nevera1.lenstextil.com
+```
+
+### Túnel SSH para Acceso Web Local
+Para ver la interfaz del kiosko (puerto 5000) en tu navegador local:
+```bash
+ssh -L 5000:localhost:5000 nevera1@ssh-nevera1.lenstextil.com
+```
+Luego, abre `http://localhost:5000` en tu navegador.
 
 ### Ver Logs
 ```bash
@@ -86,13 +132,8 @@ docker compose -p vorak-edge exec kiosko sh```
 docker compose -p vorak-edge exec nevera sh
 ``` 
 
-** para acceder al contenedor de deployer**
-`docker compose -p vorak-edge run deployer sh`
 
-*Acceder a los logs del despliegue:**
-```bash
-tail -f deploy.log
-```
+
 ---
 
 ## Próximos Pasos (Flujo de Trabajo)
