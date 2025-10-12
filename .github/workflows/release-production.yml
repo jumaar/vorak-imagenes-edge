@@ -131,44 +131,20 @@ jobs:
             echo "--- Iniciando despliegue en ${{ matrix.host }} con tag ${{ github.ref_name }} ---"
             cd /home/${{ secrets.IOT_USERNAME }}/vorak-imagenes-edge
             export IMAGE_TAG=${{ github.ref_name }}
+            
             set -e 
+            
             echo "Iniciando proceso de DESPLIEGUE..."
             echo "Fecha: $(date)"
             echo "Versión a desplegar (IMAGE_TAG): ${IMAGE_TAG}"
             echo "----------------------------------------------------"
 
             echo "Forzando actualización desde github (origin/main)..."
-
             git fetch origin main
             git reset --hard origin/main
             echo "✅ Código fuente actualizado."
 
-            if [ -z "${IMAGE_TAG}" ]; then
-              echo "Error: La variable de entorno IMAGE_TAG no está definida."
-              echo "Este script debe ser ejecutado por el workflow de GitHub Actions."
-              exit 1
-            fi
-
-            echo "Verificando la existencia del archivo .env..."
-            if [ ! -f ".env" ]; then
-                echo "Error: No se encontró el archivo .env. Asegúrate de que exista en el dispositivo."
-                exit 1
-            fi
-
-            echo "Descargando las imágenes de la versión ${IMAGE_TAG}..."
-            docker compose -p vorak-edge --env-file ./.env pull
-
-            echo "Redesplegando la pila de servicios con la nueva versión..."
-            docker compose -p vorak-edge --env-file ./.env up -d --no-build --remove-orphans --force-recreate
-
-            echo "Limpiando imágenes de Docker antiguas (dangling)..."
-            docker image prune -f
-
-            echo "Refrescando el navegador del kiosko..."
-            # Asumimos que el servicio se llama 'kiosk.service'. Ajustar si es necesario.
-            # El uso de 'sudo' puede requerir configuración de visudo para no pedir contraseña.
-            sudo systemctl restart kiosk.service
-
-            echo "✅ Proceso de despliegue finalizado. Servicios actualizados a la versión ${IMAGE_TAG}."
+            ./deploy.sh
+            
             echo "--- Despliegue completado en ${{ matrix.host }} ---"
           EOF
