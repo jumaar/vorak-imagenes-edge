@@ -129,9 +129,11 @@ docker compose -p vorak-edge exec kiosko sh```
 
 **Acceder al contenedor de la Nevera:**
 ```bash
-docker compose -p vorak-edge exec nevera sh
+docker compose -p vorak-edge exec nevera sh```
+**parar el servicio `
+ps aux | grep 'app.py'
 ``` 
-
+docker compose run --rm -e CAMERA_DEVICES="/dev/video0,/dev/video2" nevera python3 test_cameras.py
 
 
 ---

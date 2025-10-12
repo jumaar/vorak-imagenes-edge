@@ -25,7 +25,12 @@ services:
     restart: unless-stopped
     
     env_file: ./.env
-
+    
+    environment:
+        
+      - CAMERA_DEVICES=/dev/video0,/dev/video2 
+      - BAUD_RATE=115200
+      
     volumes:
       - nevera_db:/app/db
       - nevera_offline_queue:/app/offline_queue
