@@ -242,11 +242,14 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
     FRAME_HEIGHT = 720
 
     cap = None
-    # Calculamos el tiempo de espera necesario entre fotogramas para alcanzar el FPS objetivo
-    frame_delay = 1.0 / TARGET_FPS
+    
+    # Variables para medir los FPS reales de la cámara
+    frame_count = 0
+    start_time_fps_measure = time.monotonic()
+    measured_fps = TARGET_FPS # Usar el valor por defecto hasta tener una medición real
 
     while not stop_app_event.is_set():
-        # Intentar abrir o reabrir la cámara si no está abierta
+        # --- Gestión de Conexión de Cámara ---
         if cap is None or not cap.isOpened():
             logging.warning(f"[Cámara {camera_device}] Intentando abrir/reabrir cámara...")
             cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
@@ -258,6 +261,9 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
                 # --- CONFIGURACIÓN DE RESOLUCIÓN ---
                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+                # Reiniciar medición de FPS al reconectar
+                frame_count = 0
+                start_time_fps_measure = time.monotonic()
                 logging.info(f"[Cámara {camera_device}] Cámara abierta/reabierta con resolución 1280x720.")
 
         loop_start_time = time.monotonic()
@@ -271,7 +277,7 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
             time.sleep(1) # Pequeño retraso antes de intentar reabrir
             continue # Saltar el resto de esta iteración y empezar de nuevo
 
-        # --- Lógica de Grabación ---
+        # --- Lógica de Grabación (Modo CAPTURING) ---
         if capture_event.is_set():
             try:
                 # Espera no bloqueante para obtener el ID de la sesión.
@@ -283,10 +289,15 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
                 video_path = os.path.join(SESSION_DATA_PATH, f"{session_id}_{cam_safe_name}.mp4")
                 json_path = os.path.join(SESSION_DATA_PATH, f"{session_id}_{cam_safe_name}.json")
 
-                video_writer = cv2.VideoWriter(video_path, FOURCC, TARGET_FPS, (FRAME_WIDTH, FRAME_HEIGHT))
+                # Usar los FPS medidos para una grabación a velocidad real
+                video_writer = cv2.VideoWriter(video_path, FOURCC, measured_fps, (FRAME_WIDTH, FRAME_HEIGHT))
                 timestamps = []
 
-                # Bucle de grabación mientras el evento de captura esté activo
+                # Escribir el primer fotograma que ya fue leído
+                video_writer.write(frame)
+                timestamps.append(time.time_ns())
+
+                # Bucle de grabación a máxima velocidad, sin pausas artificiales
                 while capture_event.is_set():
                     rec_ret, rec_frame = cap.read()
                     if not rec_ret:
@@ -295,7 +306,6 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
                     
                     video_writer.write(rec_frame)
                     timestamps.append(time.time_ns())
-                    time.sleep(1.0 / TARGET_FPS) # Mantener FPS constante
 
                 video_writer.release()
                 with open(json_path, 'w') as f:
@@ -304,11 +314,17 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
             except queue.Empty:
                 pass # Normal si el evento está activo pero aún no hay ID de sesión
 
-        # --- Control de FPS ---
-        elapsed_time = time.monotonic() - loop_start_time # Calcular el tiempo que tomó procesar el frame
-        time_to_wait = frame_delay - elapsed_time
-        if time_to_wait > 0:
-            time.sleep(time_to_wait)
+        # --- Medición de FPS (Modo IDLE) ---
+        else: # Solo medimos FPS cuando no estamos grabando
+            frame_count += 1
+            elapsed_time = time.monotonic() - start_time_fps_measure
+            # Actualizar la medición cada 100 fotogramas para tener un valor estable
+            if elapsed_time > 1 and frame_count > 100:
+                measured_fps = frame_count / elapsed_time
+                # logging.info(f"FPS medidos para {camera_device}: {measured_fps:.2f}") # Descomentar para depurar
+                frame_count = 0
+                start_time_fps_measure = time.monotonic()
+
     if cap is not None and cap.isOpened():
         cap.release()
 

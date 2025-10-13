@@ -74,6 +74,28 @@ Esta sección sirve como referencia rápida si los despliegues automáticos fall
 
 ---
 
+## 2. Gestión y Operaciones
+
+### Descargar y Limpiar Sesiones para Revisión
+
+Cuando una sesión de compra tiene baja confianza, los videos se guardan en la `review_queue` en el dispositivo. Para descargarlos a tu PC y borrarlos del dispositivo para liberar espacio, usa el script `get_reviews.sh`.
+
+**Este proceso se debe ejecutar desde el PC de desarrollo, no en la nevera.**
+
+1.  **Dar permisos de ejecución al script (solo la primera vez)**:
+    ```bash
+    chmod +x get_reviews.sh
+    ```
+
+2.  **Ejecutar el script desde la raíz del proyecto**:
+    ```bash
+    ./get_reviews.sh
+    ```
+
+El script se conectará a la nevera, descargará los archivos y los guardará en una nueva carpeta llamada `downloaded_reviews` en el directorio actual de tu PC. Si la descarga es exitosa, borrará los archivos del dispositivo remoto para liberar espacio.
+
+---
+
 ## 3. Comandos de Gestión
 
 
@@ -138,4 +160,3 @@ ps aux | grep 'app.py'
       git tag v1.0.1
       git push origin v1.0.1
       ```
-
