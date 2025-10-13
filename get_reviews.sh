@@ -51,7 +51,7 @@ echo ""
 echo "PASO 2: Descargando la carpeta a tu PC local en '${LOCAL_DEST_DIR}'..."
 mkdir -p ${LOCAL_DEST_DIR}
 # Copiamos el contenido de la carpeta remota, no la carpeta en sí
-scp -r ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_TEMP_DIR}/review_queue/* ${LOCAL_DEST_DIR}/
+scp -r ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_TEMP_DIR}/* ${LOCAL_DEST_DIR}/
 
 if [ $? -ne 0 ]; then
   echo "❌ ERROR: Falló la descarga con scp. Los archivos NO se borrarán del dispositivo remoto."
