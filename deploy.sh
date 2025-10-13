@@ -12,7 +12,20 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
-echo "Descargando las imágenes de la versión ${IMAGE_TAG}..."
+# Cargar variables de entorno desde el archivo .env para usarlas en este script
+set -o allexport
+. ./.env
+set +o allexport
+
+echo "Iniciando sesión en GitHub Container Registry (ghcr.io)..."
+if [ -z "$GHCR_USER" ] || [ -z "$GHCR_TOKEN" ]; then
+    echo "Advertencia: GHCR_USER o GHCR_TOKEN no están definidos en .env. Se intentará descargar las imágenes sin autenticación."
+else
+    # Inicia sesión de forma no interactiva usando el token del archivo .env
+    echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+fi
+
+echo "Descargando las imágenes más recientes..."
 docker compose -p vorak-edge --env-file ./.env pull
 
 echo "Redesplegando la pila de servicios con la nueva versión..."
@@ -21,4 +34,4 @@ docker compose -p vorak-edge --env-file ./.env up -d --no-build --remove-orphans
 echo "Limpiando imágenes de Docker antiguas (dangling)..."
 docker image prune -f
 
-echo "✅ Proceso de despliegue finalizado. Servicios actualizados a la versión ${IMAGE_TAG}."
+echo "✅ Proceso de despliegue finalizado."

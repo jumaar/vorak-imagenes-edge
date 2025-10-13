@@ -75,22 +75,7 @@ Esta sección sirve como referencia rápida si los despliegues automáticos fall
 ---
 
 ## 3. Comandos de Gestión
-### Conexión SSH Directa
-```bash
-ssh nevera1@ssh-nevera1.lenstextil.com
-```
 
-### Túnel SSH para Acceso Web Local
-Para ver la interfaz del kiosko (puerto 5000) en tu navegador local:
-```bash
-ssh -L 5000:localhost:5000 nevera1@ssh-nevera1.lenstextil.com
-```
-Luego, abre `http://localhost:5000` en tu navegador.
-
-### Ver Logs
-```bash
-# Log del proceso de despliegue
-tail -f deploy.log
 
 # Ver logs del servicio 'nevera' (el cerebro)
 docker compose -p vorak-edge logs -f nevera
@@ -120,7 +105,7 @@ docker events --filter 'network=vorak-edge_vorak-net'
 
 
 ### Comandos de Depuración
-
+```
 Para acceder a una terminal (shell) dentro de un contenedor en ejecución, puedes usar los siguientes comandos. Esto es útil para revisar logs, verificar archivos o ejecutar comandos manualmente.
 
 **Acceder al contenedor del Kiosko:**
@@ -133,10 +118,7 @@ docker compose -p vorak-edge exec nevera sh```
 **parar el servicio `
 ps aux | grep 'app.py'
 ``` 
-docker compose run --rm -e CAMERA_DEVICES="/dev/video0,/dev/video2" nevera python3 test_cameras.py
 
-
----
 
 ## Próximos Pasos (Flujo de Trabajo)
 
@@ -157,4 +139,3 @@ docker compose run --rm -e CAMERA_DEVICES="/dev/video0,/dev/video2" nevera pytho
       git push origin v1.0.1
       ```
 
-Este sistema proporciona un control de versiones robusto, despliegues consistentes y un proceso automatizado para la gestión de tu flota de dispositivos IoT.

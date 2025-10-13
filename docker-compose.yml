@@ -20,17 +20,12 @@ services:
     build:
       context: .
       dockerfile: ./MODULO-NEVERA/Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/nevera:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_USER}/vorak-imagenes-edge/nevera:${IMAGE_TAG:-latest}
     container_name: vorak-nevera
     restart: unless-stopped
     
     env_file: ./.env
-    
-    environment:
-        
-      - CAMERA_DEVICES=/dev/video0,/dev/video2 
-      - BAUD_RATE=115200
-      
+
     volumes:
       - nevera_db:/app/db
       - nevera_offline_queue:/app/offline_queue
@@ -62,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: ./MODULO-KIOSKO/Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/kiosko:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_USER}/vorak-imagenes-edge/kiosko:latest 
     container_name: vorak-kiosko
     restart: unless-stopped
   
@@ -120,7 +115,7 @@ services:
     build:
       context: ./MODULO-MONITORING
       dockerfile: prometheus.Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/prometheus:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_USER}/vorak-imagenes-edge/prometheus:latest
     container_name: vorak-prometheus
 
     ports:
@@ -147,7 +142,7 @@ services:
     build:
       context: ./MODULO-MONITORING
       dockerfile: promtail.Dockerfile
-    image: ghcr.io/jumaar/vorak-imagenes-edge/promtail:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_USER}/vorak-imagenes-edge/promtail:latest
     container_name: vorak-promtail
     
     env_file: ./.env
