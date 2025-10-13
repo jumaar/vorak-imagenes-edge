@@ -72,7 +72,11 @@ LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 LOG_BACKUP_COUNT = 2 # Mantiene hasta 2 archivos de log antiguos
 
 # --- Configuración de Revisión ---
-REVIEW_QUEUE_PATH = os.path.join(SCRIPT_DIR, "review_queue") # Carpeta para guardar imágenes de sesiones de baja confianza.
+# Carpeta para guardar los archivos de video/json de sesiones de baja confianza.
+REVIEW_QUEUE_PATH = os.path.join(SCRIPT_DIR, "review_queue") 
+
+# --- Configuración de Captura de Sesión ---
+SESSION_DATA_PATH = os.path.join(SCRIPT_DIR, "session_temp") # Carpeta para guardar videos y timestamps temporales de la sesión.
 
 # --- Configuración de ArUco y Procesamiento de Imagen (tomado de los tests) ---
 ARUCO_DICTIONARY = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000)
@@ -217,23 +221,26 @@ def serial_reader_thread(ports_to_try, baud, sensor_queue, stop_app_event):
                 esp32.close()
             time.sleep(5) # Esperar un poco antes de re-escanear
 
-def camera_worker_thread(camera_device, image_cache, capture_event, stop_app_event, auth_manager):
+def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_app_event):
     """
     Hilo que gestiona una única cámara.
     
-    - Mantiene la cámara "caliente" (abierta y leyendo frames continuamente) para
-      minimizar la latencia al iniciar la captura.
-    - Cuando el `capture_event` está activado, guarda los fotogramas capturados
-      junto con su timestamp en la `image_cache`.
+    - Mantiene la cámara "caliente" (abierta y leyendo frames continuamente).
+    - Cuando el `capture_event` está activado, espera un `session_id` de la cola.
+    - Graba un video (.mp4) de la sesión y guarda los timestamps de cada frame en un archivo JSON.
     - Controla la tasa de captura para no exceder `TARGET_FPS`, optimizando el uso de CPU.
 
     Args:
         camera_device (str): La ruta del dispositivo de la cámara (ej. '/dev/video0').
-        image_cache (collections.deque): Una cola (deque) compartida donde se guardan los fotogramas.
+        session_id_queue (queue.Queue): Cola para recibir el ID de la sesión actual a grabar.
         capture_event (threading.Event): Evento que indica si se debe o no guardar fotogramas.
         stop_app_event (threading.Event): Evento para señalar la detención del hilo.
-        auth_manager (AuthManager): El gestor de autenticación para obtener el token.
     """
+    # --- Constantes para la grabación de video ---
+    FOURCC = cv2.VideoWriter_fourcc(*'mp4v') 
+    FRAME_WIDTH = 1280
+    FRAME_HEIGHT = 720
+
     cap = None
     # Calculamos el tiempo de espera necesario entre fotogramas para alcanzar el FPS objetivo
     frame_delay = 1.0 / TARGET_FPS
@@ -249,8 +256,8 @@ def camera_worker_thread(camera_device, image_cache, capture_event, stop_app_eve
                 continue # Volver a intentar en la siguiente iteración del bucle
             else:
                 # --- CONFIGURACIÓN DE RESOLUCIÓN ---
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
                 logging.info(f"[Cámara {camera_device}] Cámara abierta/reabierta con resolución 1280x720.")
 
         loop_start_time = time.monotonic()
@@ -264,9 +271,38 @@ def camera_worker_thread(camera_device, image_cache, capture_event, stop_app_eve
             time.sleep(1) # Pequeño retraso antes de intentar reabrir
             continue # Saltar el resto de esta iteración y empezar de nuevo
 
-        if ret and capture_event.is_set():
-            ts = time.time_ns()
-            image_cache.append({'timestamp': ts, 'frame': frame, 'cam_index': camera_device})
+        # --- Lógica de Grabación ---
+        if capture_event.is_set():
+            try:
+                # Espera no bloqueante para obtener el ID de la sesión.
+                session_id = session_id_queue.get_nowait()
+                logging.info(f"📹 [Cámara {camera_device}] Iniciando grabación para la sesión {session_id}")
+
+                os.makedirs(SESSION_DATA_PATH, exist_ok=True)
+                cam_safe_name = str(camera_device).replace('/', '_')
+                video_path = os.path.join(SESSION_DATA_PATH, f"{session_id}_{cam_safe_name}.mp4")
+                json_path = os.path.join(SESSION_DATA_PATH, f"{session_id}_{cam_safe_name}.json")
+
+                video_writer = cv2.VideoWriter(video_path, FOURCC, TARGET_FPS, (FRAME_WIDTH, FRAME_HEIGHT))
+                timestamps = []
+
+                # Bucle de grabación mientras el evento de captura esté activo
+                while capture_event.is_set():
+                    rec_ret, rec_frame = cap.read()
+                    if not rec_ret:
+                        logging.warning(f"[Cámara {camera_device}] Fallo de lectura durante la grabación.")
+                        break
+                    
+                    video_writer.write(rec_frame)
+                    timestamps.append(time.time_ns())
+                    time.sleep(1.0 / TARGET_FPS) # Mantener FPS constante
+
+                video_writer.release()
+                with open(json_path, 'w') as f:
+                    json.dump(timestamps, f)
+                logging.info(f"✅ [Cámara {camera_device}] Grabación finalizada. Video: {video_path}, Timestamps: {json_path}")
+            except queue.Empty:
+                pass # Normal si el evento está activo pero aún no hay ID de sesión
 
         # --- Control de FPS ---
         elapsed_time = time.monotonic() - loop_start_time # Calcular el tiempo que tomó procesar el frame
@@ -474,20 +510,26 @@ def product_database_updater_thread(url, local_path, interval_seconds, stop_even
              logging.error("❌ [Updater] Error al decodificar el JSON recibido del backend. Se reintentará.")
 
 
-def _save_images_for_review(batch_id, image_cache):
-    """Guarda las imágenes de una sesión de baja confianza para revisión manual o por IA."""
+def _save_session_for_review(batch_id, session_id):
+    """Copia los videos y JSON de una sesión de baja confianza para revisión."""
     review_folder = os.path.join(REVIEW_QUEUE_PATH, batch_id)
     try:
         os.makedirs(review_folder, exist_ok=True)
-        logging.info(f"💾 Guardando {len(image_cache)} imágenes para revisión en: {review_folder}")
-        for image_data in image_cache:
-            filename = f"review_{image_data['timestamp']}_cam{str(image_data['cam_index']).replace('/','_')}.jpg"
-            filepath = os.path.join(review_folder, filename)
-            # Guardar la imagen. El 'quality' es para JPG, 95 es un buen valor por defecto.
-            cv2.imwrite(filepath, image_data['frame'], [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        logging.info("✅ Imágenes para revisión guardadas con éxito.")
+        logging.info(f"💾 Guardando archivos de la sesión {session_id} para revisión en: {review_folder}")
+
+        session_files = glob.glob(os.path.join(SESSION_DATA_PATH, f"{session_id}*"))
+        if not session_files:
+            logging.warning(f"No se encontraron archivos para la sesión {session_id} para guardar para revisión.")
+            return
+
+        for f_path in session_files:
+            # Usamos shutil.move para ser más eficientes que copiar y luego borrar
+            import shutil
+            shutil.move(f_path, os.path.join(review_folder, os.path.basename(f_path)))
+
+        logging.info(f"✅ Archivos de la sesión {session_id} movidos a la cola de revisión.")
     except Exception as e:
-        logging.error(f"❌ No se pudieron guardar las imágenes para revisión para el lote {batch_id}: {e}")
+        logging.error(f"❌ No se pudieron guardar los archivos de la sesión {session_id} para revisión (lote {batch_id}): {e}")
 
 
 # ==============================================================================
@@ -945,26 +987,75 @@ def correlate_and_prepare_upload(aruco_detections, sensor_events, time_offset_ns
 
     return batch_id, needs_review
 
-def session_processing_thread(session_data, upload_queue):
+def session_processing_thread(session_id, sensor_events, time_offset_ns, upload_queue):
     """
     Hilo "Cocinero Jefe": Orquesta el procesamiento de una sesión finalizada.
 
     Este hilo se crea cada vez que una sesión de captura termina. Su trabajo es:
-    1. Llamar al "Cocinero Especialista" de imágenes (`process_images_for_arucos`).
-    2. Llamar al "Cocinero de Lógica de Negocio" (`correlate_and_prepare_upload`).
+    1. Reconstruir la caché de imágenes a partir de los archivos de video y JSON.
+    2. Llamar al "Cocinero Especialista" de imágenes (`process_images_for_arucos`).
+    3. Llamar al "Cocinero de Lógica de Negocio" (`correlate_and_prepare_upload`).
+    4. Limpiar los archivos temporales de la sesión.
 
     Al ejecutarse en un hilo separado, el procesamiento pesado no bloquea al hilo
     principal ("Mesero"), que puede volver inmediatamente a esperar la siguiente apertura de puerta.
     """
     logging.info("="*20 + " ⚙️ INICIO ANÁLISIS DE SESIÓN " + "="*20)
-    # 1. Procesar imágenes para obtener las detecciones de ArUco.
-    aruco_detections = process_images_for_arucos(session_data['images'])
-    # 2. Correlacionar ArUcos con eventos de sensores y preparar el envío.
-    batch_id, needs_review = correlate_and_prepare_upload(aruco_detections, session_data['sensors'], session_data['time_offset_ns'], upload_queue)
     
-    # 3. Si la sesión fue marcada para revisión, guardar las imágenes.
+    # --- PASO 1: Reconstruir la caché de imágenes desde los archivos de video/json ---
+    image_cache = []
+    session_files_to_delete = []
+    try:
+        video_files = glob.glob(os.path.join(SESSION_DATA_PATH, f"{session_id}*.mp4"))
+        logging.info(f"  - Reconstruyendo sesión desde {len(video_files)} archivo(s) de video.")
+
+        for video_path in video_files:
+            json_path = video_path.replace('.mp4', '.json')
+            session_files_to_delete.extend([video_path, json_path])
+
+            if not os.path.exists(json_path):
+                logging.warning(f"No se encontró el archivo JSON de timestamps {json_path} para el video {video_path}. Saltando video.")
+                continue
+
+            with open(json_path, 'r') as f:
+                timestamps = json.load(f)
+            
+            cam_name = os.path.basename(video_path).replace(f"{session_id}_", "").replace(".mp4", "").replace("_", "/")
+            cap = cv2.VideoCapture(video_path)
+            frame_idx = 0
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if frame_idx < len(timestamps):
+                    image_cache.append({
+                        'timestamp': timestamps[frame_idx],
+                        'frame': frame,
+                        'cam_index': cam_name
+                    })
+                frame_idx += 1
+            cap.release()
+        logging.info(f"  - Sesión reconstruida con {len(image_cache)} fotogramas en memoria.")
+    except Exception as e:
+        logging.error(f"Error fatal al reconstruir la sesión desde los archivos: {e}")
+        image_cache = [] # Asegurarse de que esté vacía si falla la reconstrucción
+
+    # --- PASO 2: Procesar imágenes para obtener las detecciones de ArUco ---
+    aruco_detections = process_images_for_arucos(image_cache)
+    # --- PASO 3: Correlacionar ArUcos con eventos de sensores y preparar el envío ---
+    batch_id, needs_review = correlate_and_prepare_upload(aruco_detections, sensor_events, time_offset_ns, upload_queue)
+    
+    # --- PASO 4: Si la sesión fue marcada para revisión, guardar los archivos. Si no, borrarlos. ---
     if needs_review and batch_id:
-        _save_images_for_review(batch_id, session_data['images'])
+        _save_session_for_review(batch_id, session_id)
+    else:
+        # Limpieza de archivos temporales si no se necesitan para revisión
+        for f_path in session_files_to_delete:
+            try:
+                if os.path.exists(f_path):
+                    os.remove(f_path)
+            except OSError as e:
+                logging.warning(f"No se pudo eliminar el archivo temporal de sesión {f_path}: {e}")
 
     logging.info("="*62)
 
@@ -999,18 +1090,22 @@ if __name__ == "__main__":
     offline_thread.start()
     db_updater_thread.start()
 
+    os.makedirs(SESSION_DATA_PATH, exist_ok=True)
     os.makedirs(OFFLINE_QUEUE_PATH, exist_ok=True)
 
     # Iniciar hilos de cámaras (se quedan en standby, listos para capturar)
-    image_cache = deque()
+    # Cada cámara necesita su propia cola para recibir el ID de la sesión
+    camera_session_id_queues = {}
     for device in CAMERA_DEVICES:
-        threading.Thread(target=camera_worker_thread, args=(device, image_cache, capture_event, stop_app_event, auth_manager), daemon=True).start()
+        q = queue.Queue(maxsize=1)
+        camera_session_id_queues[device] = q
+        threading.Thread(target=camera_worker_thread, args=(device, q, capture_event, stop_app_event), daemon=True).start()
 
     # Máquina de estados principal
     estado_captura = "IDLE"
     sensor_events_session = []
     session_time_offset_ns = 0
-    global_time_offset_ns = None # Offset para eventos fuera de una sesión (status_report, etc.)
+    global_time_offset_ns = None
     last_weight_event_time = 0
     last_status_report_sent_time = 0
 
@@ -1045,10 +1140,16 @@ if __name__ == "__main__":
 
                 if is_door_open_event:
                     logging.info("🚪 Puerta Abierta! Iniciando sesión de captura...")
+                    session_id = str(uuid.uuid4())
                     estado_captura = "CAPTURING"
                     sensor_events_session.append(sensor_data) # Guardamos el evento original para el procesador de sesión
                     last_weight_event_time = time.time()
+                    
+                    # Enviar el ID de la sesión a todas las colas de las cámaras
+                    for q in camera_session_id_queues.values():
+                        q.put(session_id)
                     capture_event.set() # <-- ORDENA A LAS CÁMARAS EMPEZAR A GUARDAR FOTOS
+
                 
                 elif event_type in ["status_report", "tare_button"]:
                     # --- Actualización para Kiosko (siempre que sea un reporte de estado) ---
@@ -1114,20 +1215,17 @@ if __name__ == "__main__":
                     logging.info("🚪 Puerta Cerrada o Timeout. Finalizando captura y delegando al procesador...")
                     capture_event.clear() # <-- ORDENA A LAS CÁMARAS DEJAR DE GUARDAR FOTOS
 
-                    # Prepara una copia de los datos de la sesión para el "cocinero".
-                    session_data_copy = {
-                        "images": list(image_cache),
-                        "sensors": list(sensor_events_session),
-                        "time_offset_ns": session_time_offset_ns # Pasamos el offset al procesador
-                    }
-
                     # --- INICIA EL PROCESADOR EN UN NUEVO HILO ---
-                    proc_thread = threading.Thread(target=session_processing_thread, args=(session_data_copy, upload_queue), daemon=True)
+                    # Pasamos el ID de la sesión y las copias de los datos al "cocinero"
+                    proc_thread = threading.Thread(
+                        target=session_processing_thread, 
+                        args=(session_id, list(sensor_events_session), session_time_offset_ns, upload_queue), 
+                        daemon=True
+                    )
                     proc_thread.start()
                     
                     # El "mesero" vuelve a su trabajo inmediatamente
-                    # Limpiamos las cachés para la siguiente sesión.
-                    image_cache.clear()
+                    # Limpiamos la caché de sensores para la siguiente sesión.
                     sensor_events_session.clear()
                     estado_captura = "IDLE"
                     logging.info("🧠 Sistema en modo IDLE, listo para la siguiente apertura.")
