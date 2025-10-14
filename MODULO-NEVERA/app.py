@@ -221,7 +221,7 @@ def serial_reader_thread(ports_to_try, baud, sensor_queue, stop_app_event):
                 esp32.close()
             time.sleep(5) # Esperar un poco antes de re-escanear
 
-def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_app_event):
+def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_app_event, recording_barrier):
     """
     Hilo que gestiona una única cámara.
     
@@ -235,6 +235,7 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
         session_id_queue (queue.Queue): Cola para recibir el ID de la sesión actual a grabar.
         capture_event (threading.Event): Evento que indica si se debe o no guardar fotogramas.
         stop_app_event (threading.Event): Evento para señalar la detención del hilo.
+        recording_barrier (threading.Barrier): Barrera para sincronizar el fin de la grabación.
     """
     # --- Constantes para la grabación de video ---
     FOURCC = cv2.VideoWriter_fourcc(*'mp4v') 
@@ -287,26 +288,35 @@ def camera_worker_thread(camera_device, session_id_queue, capture_event, stop_ap
                 video_writer = cv2.VideoWriter(video_path, FOURCC, TARGET_FPS, (FRAME_WIDTH, FRAME_HEIGHT))
                 timestamps = []
 
-                # Escribir el primer fotograma que ya fue leído
-                video_writer.write(frame)
-                timestamps.append(time.time_ns())
-
-                # Bucle de grabación con pausas para mantener el FPS constante
+                # Bucle de grabación: se ejecuta mientras el evento de captura esté activo.
+                # El primer fotograma ('frame' y 'ret') ya fue leído fuera de este bucle.
                 while capture_event.is_set():
-                    # Esperar el tiempo necesario para mantener el FPS antes de leer el siguiente frame.
-                    time.sleep(frame_delay)
-                    rec_ret, rec_frame = cap.read()
-                    if not rec_ret:
-                        logging.warning(f"[Cámara {camera_device}] Fallo de lectura durante la grabación.")
+                    loop_rec_start_time = time.monotonic()
+
+                    if not ret:
+                        logging.warning(f"[Cámara {camera_device}] Fallo de lectura durante la grabación. Terminando bucle.")
                         break
 
-                    video_writer.write(rec_frame)
+                    # 1. Escribir el fotograma actual
+                    video_writer.write(frame)
+                    # 2. Guardar el timestamp correspondiente
                     timestamps.append(time.time_ns())
+
+                    # 3. Control de FPS para que el video no se grabe en "cámara rápida"
+                    elapsed_time = time.monotonic() - loop_rec_start_time
+                    time_to_wait = frame_delay - elapsed_time
+                    if time_to_wait > 0:
+                        time.sleep(time_to_wait)
+                    
+                    # 4. Leer el siguiente fotograma para la próxima iteración
+                    ret, frame = cap.read()
 
                 video_writer.release()
                 with open(json_path, 'w') as f:
                     json.dump(timestamps, f)
                 logging.info(f"✅ [Cámara {camera_device}] Grabación finalizada. Video: {video_path}, Timestamps: {json_path}")
+                
+                recording_barrier.wait() # Señaliza que este hilo ha terminado de escribir sus archivos.
             except queue.Empty:
                 pass # Normal si el evento está activo pero aún no hay ID de sesión
 
@@ -1081,6 +1091,10 @@ if __name__ == "__main__":
     stop_app_event = threading.Event()
     capture_event = threading.Event()
 
+    # Barrera para sincronizar el fin de la grabación de todas las cámaras y el hilo principal.
+    # Número de participantes = número de cámaras + 1 (hilo principal).
+    recording_barrier = threading.Barrier(len(CAMERA_DEVICES) + 1)
+
     # Crear una única instancia del gestor de autenticación para toda la aplicación
     auth_manager = AuthManager(AUTH_URL, FRIDGE_ID, FRIDGE_SECRET)
 
@@ -1107,7 +1121,7 @@ if __name__ == "__main__":
     for device in CAMERA_DEVICES:
         q = queue.Queue(maxsize=1)
         camera_session_id_queues[device] = q
-        threading.Thread(target=camera_worker_thread, args=(device, q, capture_event, stop_app_event), daemon=True).start()
+        threading.Thread(target=camera_worker_thread, args=(device, q, capture_event, stop_app_event, recording_barrier), daemon=True).start()
 
     # Máquina de estados principal
     estado_captura = "IDLE"
@@ -1223,6 +1237,14 @@ if __name__ == "__main__":
                     logging.info("🚪 Puerta Cerrada o Timeout. Finalizando captura y delegando al procesador...")
                     capture_event.clear() # <-- ORDENA A LAS CÁMARAS DEJAR DE GUARDAR FOTOS
 
+                    # --- ESPERA SINCRONIZADA ---
+                    # El hilo principal espera aquí hasta que TODAS las cámaras hayan terminado de guardar sus archivos.
+                    try:
+                        logging.info("   -> Esperando a que las cámaras finalicen la escritura de archivos...")
+                        recording_barrier.wait(timeout=5.0) # Timeout de 5s por seguridad
+                    except threading.BrokenBarrierError:
+                        logging.error("   -> ❗ Timeout o error esperando a las cámaras. El procesamiento podría fallar.")
+
                     # --- INICIA EL PROCESADOR EN UN NUEVO HILO ---
                     # Pasamos el ID de la sesión y las copias de los datos al "cocinero"
                     proc_thread = threading.Thread(
@@ -1232,6 +1254,9 @@ if __name__ == "__main__":
                     )
                     proc_thread.start()
                     
+                    # Reseteamos la barrera para la próxima sesión.
+                    recording_barrier.reset()
+
                     # El "mesero" vuelve a su trabajo inmediatamente
                     # Limpiamos la caché de sensores para la siguiente sesión.
                     sensor_events_session.clear()
